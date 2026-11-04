@@ -21,8 +21,8 @@ export const DEFAULT_SETTINGS = {
         description: 'The Information Theory Society chapter at VIT, fostering innovation in information theory, coding, and beyond.',
         logoRound: '/logo-round.png',
         logoText: '/logo-text.png',
-        email: 'ieeeits.vit@gmail.com',
-        phone: '+91 97110 59508',
+        email: 'ieeeits@vit.ac.in',
+        phone: '+91 96184 98888',
         address: 'VIT, Vellore, Tamil Nadu',
         url: 'https://ieee-its-1-tzbd.vercel.app',
         madeWith: 'Designed & built by the',
@@ -346,7 +346,7 @@ export const DEFAULT_CONTENT = {
     social_links: [
         { platform: 'instagram', url: 'https://www.instagram.com/ieeeitsvit?igsh=MXdpbjhseXh4ZGN0' },
         { platform: 'linkedin', url: 'https://www.linkedin.com/company/ieee-its-chapter-vit/' },
-        { platform: 'email', url: 'mailto:ieeeits.vit@gmail.com' },
+        { platform: 'email', url: 'mailto:ieeeits@vit.ac.in' },
     ],
 }
 

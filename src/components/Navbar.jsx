@@ -102,7 +102,9 @@ export default function Navbar() {
                         {user ? (
                             <div className="desk">
                                 <Dropdown buttonClass="nav-user" label="Account menu" button={<>
-                                    <span className="avatar-dot">{user.picture ? <img src={user.picture} alt="" /> : first[0]?.toUpperCase()}</span>{first} <span aria-hidden="true">▾</span>
+                                    <span className={`avatar-dot${user.picture ? '' : ' logo'}`}>
+                                        {user.picture || site.logoRound ? <img src={user.picture || site.logoRound} alt="" /> : first[0]?.toUpperCase()}
+                                    </span>{first} <span aria-hidden="true">▾</span>
                                 </>}>
                                     <Link to="/join" role="menuitem">My profile</Link>
                                     <Link to="/merch?tab=orders" role="menuitem">My bookings</Link>

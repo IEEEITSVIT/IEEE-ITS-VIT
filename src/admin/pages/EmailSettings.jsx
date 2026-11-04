@@ -58,7 +58,7 @@ export default function EmailSettings() {
                         <input className="adm-input" value={notif.orderRecipients} onChange={e => setNotif(n => ({ ...n, orderRecipients: e.target.value }))} placeholder="treasurer@example.com, chair@example.com" />
                     </label>
                     <label className="adm-field"><span>New queries & suggestions → send to</span>
-                        <input className="adm-input" value={notif.queryRecipients} onChange={e => setNotif(n => ({ ...n, queryRecipients: e.target.value }))} placeholder="ieeeits.vit@gmail.com" />
+                        <input className="adm-input" value={notif.queryRecipients} onChange={e => setNotif(n => ({ ...n, queryRecipients: e.target.value }))} placeholder="ieeeits@vit.ac.in" />
                     </label>
                     <p className="adm-hint">Separate multiple addresses with commas.</p>
                     <div className="adm-stack">
