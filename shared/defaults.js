@@ -24,7 +24,7 @@ export const DEFAULT_SETTINGS = {
         email: 'ieeeits@vit.ac.in',
         phone: '+91 96184 98888',
         address: 'VIT, Vellore, Tamil Nadu',
-        url: 'https://ieee-its-1-tzbd.vercel.app',
+        url: 'https://ieee-its-vit.vercel.app',
         madeWith: 'Designed & built by the',
         footerForm: {
             enabled: true,
