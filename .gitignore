@@ -37,3 +37,6 @@ scripts/portraits/vision
 
 # Personal screenshot not meant for the public repo
 public/Screenshot 2025-11-29 002959.png
+
+# Vercel import file (contains secrets)
+.env.vercel
