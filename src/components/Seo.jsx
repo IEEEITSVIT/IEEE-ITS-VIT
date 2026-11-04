@@ -50,7 +50,8 @@ export default function Seo({ title, description, image, type = 'website', jsonL
         setMeta('name', 'description', desc)
         setMeta('name', 'keywords', seo.keywords)
         setMeta('name', 'robots', noindex || page.noindex || pathname.startsWith('/admin') ? 'noindex, nofollow' : 'index, follow, max-image-preview:large')
-        setMeta('name', 'google-site-verification', seo.googleVerification)
+        // Only a bare token is valid here; pasted file names or whole tags are ignored.
+        if (/^[\w-]{20,}$/.test(seo.googleVerification || '')) setMeta('name', 'google-site-verification', seo.googleVerification)
         setMeta('property', 'og:title', fullTitle)
         setMeta('property', 'og:description', desc)
         setMeta('property', 'og:type', type)
@@ -67,12 +68,13 @@ export default function Seo({ title, description, image, type = 'website', jsonL
         const sameAs = list('social_links').map(l => l.url).filter(u => /^https?:/i.test(u || ''))
         const org = {
             '@type': 'Organization', '@id': `${base}/#organization`, name: site.name, url: base,
+            alternateName: seo.alternateNames?.filter(Boolean).length ? seo.alternateNames.filter(Boolean) : undefined,
             logo: absolute(base, site.logoRound), email: site.email, telephone: site.phone || undefined,
             description: site.description || seo.description || undefined,
             sameAs: sameAs.length ? sameAs : undefined,
             parentOrganization: { '@type': 'Organization', name: 'IEEE Information Theory Society' },
         }
-        const website = { '@type': 'WebSite', '@id': `${base}/#website`, name: site.name, url: base, publisher: { '@id': `${base}/#organization` } }
+        const website = { '@type': 'WebSite', '@id': `${base}/#website`, name: site.name, alternateName: org.alternateName, url: base, publisher: { '@id': `${base}/#organization` } }
         let script = document.getElementById('ld-json')
         if (!script) {
             script = document.createElement('script')
