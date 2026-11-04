@@ -179,8 +179,13 @@ route('GET', '/api/public/bootstrap', async ({ res }) => {
     return { settings, content, events, moments, generatedAt: new Date().toISOString() }
 })
 
-/* Canonical origin: the admin-set site URL, else the host this request came in on. */
-const siteBase = (site, req) => (site.url || `https://${req.headers['x-forwarded-host'] || req.headers.host}`).replace(/\/$/, '')
+/* Sitemap URLs must be on the host the sitemap is fetched from (Search Console rejects others),
+   so use the requesting host and fall back to the admin-set site URL. */
+const siteBase = (site, req) => {
+    const host = String(req.headers['x-forwarded-host'] || req.headers.host || '').split(',')[0].trim()
+    const proto = /^(localhost|127\.0\.0\.1)(:|$)/.test(host) ? 'http' : 'https'
+    return (host ? `${proto}://${host}` : site.url || '').replace(/\/$/, '')
+}
 
 route('GET', '/api/sitemap.xml', async ({ req, res }) => {
     const [{ site }, events, blogs] = await Promise.all([
