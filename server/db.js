@@ -1,8 +1,9 @@
 /**
  * Database adapter.
  *
- *  • Production (Vercel): Cloudflare D1 through the D1 HTTP query API.
- *    Requires CF_ACCOUNT_ID, CF_D1_DATABASE_ID and CF_API_TOKEN (D1:Edit scope).
+ *  • Production (Vercel): Cloudflare D1, reached either
+ *      – through the D1 gateway Worker (workers/d1-gateway): D1_GATEWAY_URL + D1_GATEWAY_SECRET, or
+ *      – through Cloudflare's D1 HTTP API: CF_ACCOUNT_ID, CF_D1_DATABASE_ID, CF_API_TOKEN (D1:Edit).
  *  • Local development: a SQLite file via Node's built-in `node:sqlite`
  *    (same SQL dialect as D1), stored at .data/ieeeits-cms.db.
  *
@@ -12,8 +13,10 @@ import fs from 'fs'
 import path from 'path'
 
 const D1_ENV = ['CF_ACCOUNT_ID', 'CF_D1_DATABASE_ID', 'CF_API_TOKEN']
+const GATEWAY_ENV = ['D1_GATEWAY_URL', 'D1_GATEWAY_SECRET']
 
-export const usingD1 = () => D1_ENV.every(k => !!process.env[k])
+const usingGateway = () => GATEWAY_ENV.every(k => !!process.env[k])
+export const usingD1 = () => usingGateway() || D1_ENV.every(k => !!process.env[k])
 
 const normalise = params => (params || []).map(v => {
     if (v === undefined) return null
@@ -24,15 +27,15 @@ const normalise = params => (params || []).map(v => {
 
 /* ───────────── Cloudflare D1 (HTTP) ───────────── */
 async function d1Query(sql, params = []) {
-    const { CF_ACCOUNT_ID, CF_D1_DATABASE_ID, CF_API_TOKEN } = process.env
-    const res = await fetch(
-        `https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/d1/database/${CF_D1_DATABASE_ID}/query`,
-        {
-            method: 'POST',
-            headers: { Authorization: `Bearer ${CF_API_TOKEN}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify(params.length ? { sql, params: normalise(params) } : { sql }),
-        }
-    )
+    const { CF_ACCOUNT_ID, CF_D1_DATABASE_ID, CF_API_TOKEN, D1_GATEWAY_URL, D1_GATEWAY_SECRET } = process.env
+    const [url, token] = usingGateway()
+        ? [D1_GATEWAY_URL, D1_GATEWAY_SECRET]
+        : [`https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/d1/database/${CF_D1_DATABASE_ID}/query`, CF_API_TOKEN]
+    const res = await fetch(url, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(params.length ? { sql, params: normalise(params) } : { sql }),
+    })
     const body = await res.json().catch(() => ({}))
     if (!res.ok || body.success === false) {
         const msg = body.errors?.map(e => e.message).join('; ') || `D1 HTTP ${res.status}`
@@ -90,7 +93,7 @@ const local = {
 export function getDb() {
     if (usingD1()) return d1
     if (process.env.VERCEL) {
-        throw Object.assign(new Error('Database not configured: set CF_ACCOUNT_ID, CF_D1_DATABASE_ID and CF_API_TOKEN in Vercel.'), { status: 503 })
+        throw Object.assign(new Error('Database not configured: set D1_GATEWAY_URL and D1_GATEWAY_SECRET (or the CF_* D1 API variables) in Vercel.'), { status: 503 })
     }
     return local
 }

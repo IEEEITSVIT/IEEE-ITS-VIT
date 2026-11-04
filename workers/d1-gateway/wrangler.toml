@@ -1,0 +1,13 @@
+# D1 gateway: lets the Vercel-hosted API query Cloudflare D1 through a Worker binding,
+# so no Cloudflare API token is needed. Deploy with:  npx wrangler deploy  (from this folder)
+name = "ieee-its-d1-gateway"
+main = "src/index.js"
+compatibility_date = "2025-09-01"
+workers_dev = true
+
+[[d1_databases]]
+binding = "DB"
+database_name = "ieee-its"
+database_id = "42210d01-ac83-4be7-9512-7395439feca9"
+
+# Secret (set with `npx wrangler secret put GATEWAY_SECRET`): shared with Vercel as D1_GATEWAY_SECRET

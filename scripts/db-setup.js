@@ -10,13 +10,13 @@ import { loadEnv } from './load-env.js'
 
 loadEnv()
 const remote = process.argv.includes('--remote')
-if (!remote) for (const k of ['CF_ACCOUNT_ID', 'CF_D1_DATABASE_ID', 'CF_API_TOKEN']) delete process.env[k]
+if (!remote) for (const k of ['CF_ACCOUNT_ID', 'CF_D1_DATABASE_ID', 'CF_API_TOKEN', 'D1_GATEWAY_URL', 'D1_GATEWAY_SECRET']) delete process.env[k]
 
 const { usingD1 } = await import('../server/db.js')
 const { applySchema, seedDefaults, ensureAdmin } = await import('../server/seed.js')
 
 if (remote && !usingD1()) {
-    console.error('✖ --remote needs CF_ACCOUNT_ID, CF_D1_DATABASE_ID and CF_API_TOKEN (see .env.example).')
+    console.error('✖ --remote needs D1_GATEWAY_URL + D1_GATEWAY_SECRET, or CF_ACCOUNT_ID + CF_D1_DATABASE_ID + CF_API_TOKEN (see .env.example).')
     process.exit(1)
 }
 console.log(`→ Target: ${usingD1() ? 'Cloudflare D1' : 'local SQLite'}`)

@@ -1,5 +1,5 @@
 /**
- * Moves every image the database references from /public into ImageKit and rewrites the URLs,
+ * Moves every image the database references (from /public or hotlinked from other sites) into ImageKit and rewrites the URLs,
  * so all site media is served from ImageKit storage/CDN.
  *
  *   npm run media:migrate              → local SQLite
@@ -13,7 +13,7 @@ import path from 'path'
 import { loadEnv } from './load-env.js'
 
 loadEnv()
-if (!process.argv.includes('--remote')) for (const k of ['CF_ACCOUNT_ID', 'CF_D1_DATABASE_ID', 'CF_API_TOKEN']) delete process.env[k]
+if (!process.argv.includes('--remote')) for (const k of ['CF_ACCOUNT_ID', 'CF_D1_DATABASE_ID', 'CF_API_TOKEN', 'D1_GATEWAY_URL', 'D1_GATEWAY_SECRET']) delete process.env[k]
 const { getDb } = await import('../server/db.js')
 const { imagekitConfigured } = await import('../server/imagekit.js')
 if (!imagekitConfigured()) { console.error('✖ Set IMAGEKIT_PUBLIC_KEY, IMAGEKIT_PRIVATE_KEY and IMAGEKIT_URL_ENDPOINT first.'); process.exit(1) }
@@ -22,17 +22,26 @@ const db = getDb()
 const PUBLIC = path.resolve('public')
 const FOLDER = process.env.IMAGEKIT_FOLDER || '/ieee-its'
 const LOCAL = /^\/[^"'\s]+\.(?:jpe?g|png|webp|gif|svg|avif)$/i
+// External images (hotlinked from other sites) are copied into ImageKit too; ImageKit fetches them by URL.
+const EXTERNAL = /^https?:\/\/(?!ik\.imagekit\.io)[^"'\s]+\.(?:jpe?g|png|webp|gif|svg|avif)(?:\?[^"'\s]*)?$/i
 const auth = `Basic ${Buffer.from(`${process.env.IMAGEKIT_PRIVATE_KEY}:`).toString('base64')}`
 const cache = new Map((await db.all("SELECT name, url FROM media WHERE folder LIKE 'migrated:%'")).map(r => [r.name, r.url]))
 
 async function upload(localPath) {
     if (cache.has(localPath)) return cache.get(localPath)
-    const file = path.join(PUBLIC, decodeURIComponent(localPath))
-    if (!file.startsWith(PUBLIC) || !fs.existsSync(file)) { console.warn(`  ! missing ${localPath}`); return null }
     const form = new FormData()
-    form.append('file', new Blob([fs.readFileSync(file)]), path.basename(file))
-    form.append('fileName', path.basename(file).replace(/[^\w.-]+/g, '-'))
-    form.append('folder', `${FOLDER}${path.dirname(localPath) === '/' ? '' : path.dirname(localPath)}`)
+    if (EXTERNAL.test(localPath)) {
+        const u = new URL(localPath)
+        form.append('file', localPath)
+        form.append('fileName', path.basename(u.pathname).replace(/[^\w.-]+/g, '-'))
+        form.append('folder', `${FOLDER}/external/${u.hostname.replace(/[^\w-]+/g, '-')}${path.dirname(u.pathname)}`)
+    } else {
+        const file = path.join(PUBLIC, decodeURIComponent(localPath))
+        if (!file.startsWith(PUBLIC) || !fs.existsSync(file)) { console.warn(`  ! missing ${localPath}`); return null }
+        form.append('file', new Blob([fs.readFileSync(file)]), path.basename(file))
+        form.append('fileName', path.basename(file).replace(/[^\w.-]+/g, '-'))
+        form.append('folder', `${FOLDER}${path.dirname(localPath) === '/' ? '' : path.dirname(localPath)}`)
+    }
     form.append('useUniqueFileName', 'false')
     const res = await fetch('https://upload.imagekit.io/api/v1/files/upload', { method: 'POST', headers: { Authorization: auth }, body: form })
     const data = await res.json()
@@ -45,7 +54,7 @@ async function upload(localPath) {
 }
 
 async function rewrite(value) {
-    if (typeof value === 'string') return LOCAL.test(value) ? (await upload(value)) || value : value
+    if (typeof value === 'string') return LOCAL.test(value) || EXTERNAL.test(value) ? (await upload(value)) || value : value
     if (Array.isArray(value)) { const out = []; for (const v of value) out.push(await rewrite(v)); return out }
     if (value && typeof value === 'object') { const out = {}; for (const [k, v] of Object.entries(value)) out[k] = await rewrite(v); return out }
     return value
