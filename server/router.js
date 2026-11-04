@@ -179,11 +179,14 @@ route('GET', '/api/public/bootstrap', async ({ res }) => {
     return { settings, content, events, moments, generatedAt: new Date().toISOString() }
 })
 
-route('GET', '/api/sitemap.xml', async ({ res }) => {
+/* Canonical origin: the admin-set site URL, else the host this request came in on. */
+const siteBase = (site, req) => (site.url || `https://${req.headers['x-forwarded-host'] || req.headers.host}`).replace(/\/$/, '')
+
+route('GET', '/api/sitemap.xml', async ({ req, res }) => {
     const [{ site }, events, blogs] = await Promise.all([
         loadSettings(['site']), loadEvents(), getDb().all("SELECT data, updated_at FROM content WHERE type = 'blogs' AND status = 'published'"),
     ])
-    const base = (site.url || 'https://ieee-its-1-tzbd.vercel.app').replace(/\/$/, '')
+    const base = siteBase(site, req)
     const pages = ['/', '/timeline', '/moments', '/blogs', '/vlogs', '/faculty', '/merch', '/games', '/faq', '/join', '/contact', '/suggestions', '/web-team']
     const urls = [
         ...pages.map(p => ({ loc: base + p, priority: p === '/' ? '1.0' : '0.7' })),
@@ -195,9 +198,9 @@ route('GET', '/api/sitemap.xml', async ({ res }) => {
     send(res, 200, xml, { 'Content-Type': 'application/xml; charset=utf-8', 'Cache-Control': 'public, s-maxage=3600' })
 })
 
-route('GET', '/api/robots.txt', async ({ res }) => {
+route('GET', '/api/robots.txt', async ({ req, res }) => {
     const { site } = await loadSettings(['site'])
-    const base = (site.url || '').replace(/\/$/, '')
+    const base = siteBase(site, req)
     send(res, 200, `User-agent: *\nAllow: /\nDisallow: /admin\nDisallow: /api/\n\nSitemap: ${base}/sitemap.xml\n`, { 'Cache-Control': 'public, s-maxage=3600' })
 })
 

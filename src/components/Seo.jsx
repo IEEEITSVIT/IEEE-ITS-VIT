@@ -31,7 +31,7 @@ const absolute = (base, url) => (!url ? '' : /^https?:/i.test(url) ? url : `${ba
  */
 export default function Seo({ title, description, image, type = 'website', jsonLd, noindex }) {
     const { pathname } = useLocation()
-    const { settings } = useSite()
+    const { settings, list } = useSite()
 
     useEffect(() => {
         const seo = settings.seo || {}
@@ -64,11 +64,15 @@ export default function Seo({ title, description, image, type = 'website', jsonL
         setMeta('name', 'twitter:site', seo.twitterHandle)
         setLink('canonical', url)
 
+        const sameAs = list('social_links').map(l => l.url).filter(u => /^https?:/i.test(u || ''))
         const org = {
-            '@context': 'https://schema.org', '@type': 'Organization', name: site.name, url: base,
-            logo: absolute(base, site.logoRound), email: site.email,
+            '@type': 'Organization', '@id': `${base}/#organization`, name: site.name, url: base,
+            logo: absolute(base, site.logoRound), email: site.email, telephone: site.phone || undefined,
+            description: site.description || seo.description || undefined,
+            sameAs: sameAs.length ? sameAs : undefined,
             parentOrganization: { '@type': 'Organization', name: 'IEEE Information Theory Society' },
         }
+        const website = { '@type': 'WebSite', '@id': `${base}/#website`, name: site.name, url: base, publisher: { '@id': `${base}/#organization` } }
         let script = document.getElementById('ld-json')
         if (!script) {
             script = document.createElement('script')
@@ -76,8 +80,9 @@ export default function Seo({ title, description, image, type = 'website', jsonL
             script.id = 'ld-json'
             document.head.appendChild(script)
         }
-        script.textContent = JSON.stringify(jsonLd ? [org, jsonLd] : org)
-    }, [pathname, title, description, image, type, jsonLd, noindex, settings])
+        const graph = [org, website, ...(jsonLd ? [jsonLd] : [])].map(({ '@context': _, ...node }) => node)
+        script.textContent = JSON.stringify({ '@context': 'https://schema.org', '@graph': graph })
+    }, [pathname, title, description, image, type, jsonLd, noindex, settings, list])
 
     return null
 }

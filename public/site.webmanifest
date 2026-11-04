@@ -1,0 +1,9 @@
+{
+  "name": "IEEE ITS - VIT Chapter",
+  "short_name": "IEEE ITS VIT",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0b0c0e",
+  "theme_color": "#0b0c0e",
+  "icons": [{ "src": "/logo-round.png", "sizes": "976x910", "type": "image/png" }]
+}
