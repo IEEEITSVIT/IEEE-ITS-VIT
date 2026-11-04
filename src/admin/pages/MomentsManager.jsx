@@ -30,7 +30,7 @@ export default function MomentsManager() {
     }
 
     const remove = async m => {
-        if (!await confirm(`Delete album “${m.title}”? The images stay in the media library.`)) return
+        if (!await confirm(`Delete album “${m.title}”? Its photos are also deleted from ImageKit unless they are used elsewhere on the site.`)) return
         try { await api.del(`/admin/moments/${m.id}`); toast('Album deleted'); reload(); refresh(true) }
         catch (e) { toast(e.message, 'error') }
     }

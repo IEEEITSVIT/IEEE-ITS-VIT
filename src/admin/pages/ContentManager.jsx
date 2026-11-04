@@ -96,7 +96,7 @@ export default function ContentManager({ type }) {
     }
 
     const remove = async item => {
-        if (!await confirm(`Delete “${item[def.title] || def.singular}”? This cannot be undone.`)) return
+        if (!await confirm(`Delete “${item[def.title] || def.singular}”? This cannot be undone. Its images are also deleted from ImageKit unless used elsewhere.`)) return
         try {
             await api.del(`/admin/content/${type}/${item.id}`)
             setData(list => list.filter(x => x.id !== item.id))

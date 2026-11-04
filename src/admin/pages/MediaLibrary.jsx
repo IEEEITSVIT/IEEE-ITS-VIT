@@ -25,7 +25,7 @@ export default function MediaLibrary() {
     }
 
     const remove = async m => {
-        if (!await confirm(`Delete “${m.name}” from ImageKit? Any page still using this URL will show a broken image.`)) return
+        if (!await confirm(`Delete “${m.name}” from ImageKit permanently?`)) return
         try { await api.del(`/admin/media/${m.id}`); setData(d => ({ ...d, items: d.items.filter(x => x.id !== m.id) })); toast('Deleted') }
         catch (e) { toast(e.message, 'error') }
     }
@@ -34,7 +34,7 @@ export default function MediaLibrary() {
 
     return (
         <>
-            <PageTitle title="Media Library" subtitle="Images are stored on ImageKit (optimised + CDN). Drag files anywhere on this page to upload.">
+            <PageTitle title="Media Library" subtitle="Images are stored on ImageKit (optimised + CDN). Drag files anywhere on this page to upload. When a photo is removed from the site and nothing else uses it, it is deleted from ImageKit automatically.">
                 <input className="adm-input search" placeholder="Search files…" value={q} onChange={e => setQ(e.target.value)} />
                 <button className="adm-btn primary" disabled={!data?.imagekit || !!progress} onClick={() => fileRef.current.click()}>{progress ? `Uploading ${progress}` : '⬆ Upload images'}</button>
                 <input ref={fileRef} type="file" accept="image/*" multiple hidden onChange={e => { upload(e.target.files); e.target.value = '' }} />

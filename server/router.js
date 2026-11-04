@@ -114,6 +114,45 @@ async function loadMoments({ includeDrafts = false, events }) {
     }).sort((a, b) => (b.effective_date || '').localeCompare(a.effective_date || '') || a.sort_order - b.sort_order)
 }
 
+/* ───────────── ImageKit cleanup ─────────────
+ * When content stops using an uploaded image (item deleted or photo replaced), the file is
+ * removed from ImageKit — but only if nothing else on the site still uses it. */
+const IK_URL = /https:\/\/ik\.imagekit\.io\/[^"'\s\\)<>]+/g
+const imageUrls = (...values) => new Set(values.flatMap(v => String(typeof v === 'string' ? v : JSON.stringify(v ?? '')).match(IK_URL) || []))
+const dropped = (before, after) => [...before].filter(u => !after.has(u))
+
+async function imageUsage(url) {
+    const db = getDb()
+    const [content, events, moments, settings] = await Promise.all([
+        db.all('SELECT type, data FROM content WHERE instr(data, ?) > 0', [url]),
+        db.all('SELECT title FROM events WHERE instr(poster_url, ?) > 0 OR instr(extra, ?) > 0 OR instr(body_html, ?) > 0', [url, url, url]),
+        db.all('SELECT title FROM moments WHERE instr(photos, ?) > 0', [url]),
+        db.all('SELECT key FROM settings WHERE instr(value, ?) > 0', [url]),
+    ])
+    return [
+        ...content.map(r => { const t = CONTENT_TYPES[r.type]; const d = parseJson(r.data, {}); return `${t?.label || r.type}: ${d[t?.title] || 'item'}` }),
+        ...events.map(r => `Event: ${r.title}`),
+        ...moments.map(r => `Album: ${r.title}`),
+        ...settings.map(r => `Settings: ${SETTINGS_FORMS[r.key]?.label || r.key}`),
+    ]
+}
+
+async function releaseImages(user, urls) {
+    const db = getDb()
+    for (const url of urls) {
+        try {
+            const m = await db.first('SELECT * FROM media WHERE url = ?', [url])
+            if (!m) continue // not uploaded through this site — leave it alone
+            if ((await imageUsage(url)).length) continue
+            await deleteFile(m.file_id)
+            await db.run('DELETE FROM media WHERE id = ?', [m.id])
+            await audit(user, 'delete', 'media', m.id, `Removed from ImageKit (no longer used): ${m.name || url}`)
+        } catch (e) {
+            console.error('[media] cleanup failed for', url, e.message)
+        }
+    }
+}
+
 /* ───────────── route table ───────────── */
 const routes = []
 const route = (method, pattern, handler) => {
@@ -407,18 +446,22 @@ route('PUT', '/api/admin/content/:type/:id', async ({ user, params, body }) => {
     const data = prepareContent(params.type, body.data)
     const meta = contentMeta(body)
     const db = getDb()
-    const r = await db.run("UPDATE content SET data = ?, status = ?, starts_at = ?, ends_at = ?, updated_at = datetime('now') WHERE id = ? AND type = ?",
+    const before = await db.first('SELECT data FROM content WHERE id = ? AND type = ?', [Number(params.id), params.type])
+    if (!before) fail(404, 'Item not found')
+    await db.run("UPDATE content SET data = ?, status = ?, starts_at = ?, ends_at = ?, updated_at = datetime('now') WHERE id = ? AND type = ?",
         [JSON.stringify(data), meta.status, meta.starts_at, meta.ends_at, Number(params.id), params.type])
-    if (!r.changes) fail(404, 'Item not found')
     await audit(user, 'update', params.type, params.id, data[CONTENT_TYPES[params.type].title] || '')
+    await releaseImages(user, dropped(imageUrls(before.data), imageUrls(data)))
     return { item: contentRow(await db.first('SELECT * FROM content WHERE id = ?', [Number(params.id)])) }
 })
 
 route('DELETE', '/api/admin/content/:type/:id', async ({ user, params }) => {
     requireRole(user, 'editor'); typeDef(params.type)
-    const r = await getDb().run('DELETE FROM content WHERE id = ? AND type = ?', [Number(params.id), params.type])
-    if (!r.changes) fail(404, 'Item not found')
+    const before = await getDb().first('SELECT data FROM content WHERE id = ? AND type = ?', [Number(params.id), params.type])
+    if (!before) fail(404, 'Item not found')
+    await getDb().run('DELETE FROM content WHERE id = ? AND type = ?', [Number(params.id), params.type])
     await audit(user, 'delete', params.type, params.id)
+    await releaseImages(user, imageUrls(before.data))
     return { ok: true }
 })
 
@@ -464,19 +507,23 @@ route('PUT', '/api/admin/events/:id', async ({ user, params, body }) => {
     const id = Number(params.id)
     const e = prepareEvent(body)
     e.slug = await uniqueSlug('events', e.slug || e.title, id)
-    const r = await getDb().run(`UPDATE events SET ${EVENT_COLS.map(c => `${c} = ?`).join(', ')}, updated_at = datetime('now') WHERE id = ?`, [...EVENT_COLS.map(c => e[c]), id])
-    if (!r.changes) fail(404, 'Event not found')
+    const before = await getDb().first('SELECT poster_url, extra, body_html FROM events WHERE id = ?', [id])
+    if (!before) fail(404, 'Event not found')
+    await getDb().run(`UPDATE events SET ${EVENT_COLS.map(c => `${c} = ?`).join(', ')}, updated_at = datetime('now') WHERE id = ?`, [...EVENT_COLS.map(c => e[c]), id])
     await audit(user, 'update', 'event', id, e.title)
+    await releaseImages(user, dropped(imageUrls(before.poster_url, before.extra, before.body_html), imageUrls(e.poster_url, e.extra, e.body_html)))
     return { item: eventRow(await getDb().first('SELECT * FROM events WHERE id = ?', [id])) }
 })
 
 route('DELETE', '/api/admin/events/:id', async ({ user, params }) => {
     requireRole(user, 'editor')
     const id = Number(params.id)
+    const before = await getDb().first('SELECT poster_url, extra, body_html FROM events WHERE id = ?', [id])
+    if (!before) fail(404, 'Event not found')
     await getDb().run('UPDATE moments SET event_id = NULL WHERE event_id = ?', [id])
-    const r = await getDb().run('DELETE FROM events WHERE id = ?', [id])
-    if (!r.changes) fail(404, 'Event not found')
+    await getDb().run('DELETE FROM events WHERE id = ?', [id])
     await audit(user, 'delete', 'event', id)
+    await releaseImages(user, imageUrls(before.poster_url, before.extra, before.body_html))
     return { ok: true }
 })
 
@@ -502,16 +549,21 @@ route('POST', '/api/admin/moments', async ({ user, body }) => {
 route('PUT', '/api/admin/moments/:id', async ({ user, params, body }) => {
     requireRole(user, 'editor')
     const m = prepareMoment(body)
-    const r = await getDb().run(`UPDATE moments SET ${MOMENT_COLS.map(c => `${c} = ?`).join(', ')}, updated_at = datetime('now') WHERE id = ?`, [...MOMENT_COLS.map(c => m[c]), Number(params.id)])
-    if (!r.changes) fail(404, 'Album not found')
+    const before = await getDb().first('SELECT photos FROM moments WHERE id = ?', [Number(params.id)])
+    if (!before) fail(404, 'Album not found')
+    await getDb().run(`UPDATE moments SET ${MOMENT_COLS.map(c => `${c} = ?`).join(', ')}, updated_at = datetime('now') WHERE id = ?`, [...MOMENT_COLS.map(c => m[c]), Number(params.id)])
     await audit(user, 'update', 'moment', params.id, m.title)
+    await releaseImages(user, dropped(imageUrls(before.photos), imageUrls(m.photos)))
     return { ok: true }
 })
 
 route('DELETE', '/api/admin/moments/:id', async ({ user, params }) => {
     requireRole(user, 'editor')
+    const before = await getDb().first('SELECT photos FROM moments WHERE id = ?', [Number(params.id)])
+    if (!before) fail(404, 'Album not found')
     await getDb().run('DELETE FROM moments WHERE id = ?', [Number(params.id)])
     await audit(user, 'delete', 'moment', params.id)
+    await releaseImages(user, imageUrls(before.photos))
     return { ok: true }
 })
 
@@ -559,8 +611,10 @@ route('PUT', '/api/admin/settings/:key', async ({ user, params, body }) => {
     }
     const json = JSON.stringify(value)
     if (json.length > 500_000) fail(413, 'Setting is too large')
+    const before = await db.first('SELECT value FROM settings WHERE key = ?', [key])
     await db.run("INSERT INTO settings (key, value, updated_at) VALUES (?, ?, datetime('now')) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at", [key, json])
     await audit(user, 'update', 'settings', key)
+    await releaseImages(user, dropped(imageUrls(before?.value), imageUrls(json)))
     return { ok: true }
 })
 
@@ -590,6 +644,8 @@ route('DELETE', '/api/admin/media/:id', async ({ user, params }) => {
     requireRole(user, 'editor')
     const m = await getDb().first('SELECT * FROM media WHERE id = ?', [Number(params.id)])
     if (!m) fail(404, 'File not found')
+    const usedIn = await imageUsage(m.url)
+    if (usedIn.length) fail(409, `This image is still used in ${usedIn.length} place${usedIn.length > 1 ? 's' : ''}: ${usedIn.slice(0, 5).join('; ')}${usedIn.length > 5 ? '; …' : ''}. Remove it there first — it will then be deleted from ImageKit automatically.`)
     await deleteFile(m.file_id)
     await getDb().run('DELETE FROM media WHERE id = ?', [m.id])
     await audit(user, 'delete', 'media', m.id, m.name)

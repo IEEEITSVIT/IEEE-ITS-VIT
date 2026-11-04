@@ -34,7 +34,7 @@ export default function EventsManager() {
     }
 
     const remove = async e => {
-        if (!await confirm(`Delete “${e.title}”? Linked photo albums will be kept but unlinked.`)) return
+        if (!await confirm(`Delete “${e.title}”? Linked photo albums are kept (unlinked). The poster is deleted from ImageKit unless used elsewhere.`)) return
         try {
             await api.del(`/admin/events/${e.id}`)
             setData(list => list.filter(x => x.id !== e.id))
