@@ -1,14 +1,84 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '../hooks/useAuth'
+import { api } from '../lib/api'
 import Seo from '../components/Seo'
 
+/* Forgot password: request a 6-digit code by email, then set a new password with it. */
+function ForgotPassword({ initialEmail, onDone, onBack }) {
+    const [step, setStep] = useState('email')
+    const [email, setEmail] = useState(initialEmail || '')
+    const [code, setCode] = useState('')
+    const [pw, setPw] = useState({ next: '', confirm: '' })
+    const [msg, setMsg] = useState(null)
+    const [busy, setBusy] = useState(false)
+    const [cooldown, setCooldown] = useState(0)
+
+    useEffect(() => {
+        if (!cooldown) return
+        const t = setTimeout(() => setCooldown(c => c - 1), 1000)
+        return () => clearTimeout(t)
+    }, [cooldown])
+
+    const sendCode = async e => {
+        e?.preventDefault()
+        setBusy(true); setMsg(null)
+        try {
+            const r = await api.post('/auth/forgot', { email })
+            setStep('code'); setCooldown(60)
+            setMsg({ ok: true, t: r.message })
+        } catch (err) { setMsg({ ok: false, t: err.message }) } finally { setBusy(false) }
+    }
+
+    const reset = async e => {
+        e.preventDefault()
+        if (pw.next !== pw.confirm) return setMsg({ ok: false, t: 'Passwords do not match.' })
+        setBusy(true); setMsg(null)
+        try {
+            const { user } = await api.post('/auth/reset', { email, code, password: pw.next })
+            onDone(user)
+        } catch (err) { setMsg({ ok: false, t: err.message }) } finally { setBusy(false) }
+    }
+
+    return (
+        <>
+            <span className="label">Account recovery</span>
+            <h1 className="display h-md" style={{ marginTop: 14 }}>Reset password</h1>
+            <p className="muted" style={{ margin: '12px 0 22px' }}>
+                {step === 'email' ? 'Enter your account email and we will send you a 6-digit code.' : <>Enter the code sent to <b style={{ color: 'var(--text)' }}>{email}</b> and choose a new password.</>}
+            </p>
+            {step === 'email' ? (
+                <form className="form" onSubmit={sendCode}>
+                    <label className="field"><span>Email</span><input type="email" value={email} onChange={e => setEmail(e.target.value)} required autoComplete="email" autoFocus /></label>
+                    <button className="btn solid" disabled={busy}>{busy ? 'Sending…' : 'Send code'} <span className="arr">→</span></button>
+                    {msg && <p className={`notice ${msg.ok ? 'ok' : 'err'}`} role="alert">{msg.t}</p>}
+                </form>
+            ) : (
+                <form className="form" onSubmit={reset}>
+                    <label className="field"><span>6-digit code</span>
+                        <input value={code} onChange={e => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))} inputMode="numeric" autoComplete="one-time-code" required autoFocus
+                            style={{ fontFamily: 'var(--font-mono)', fontSize: '1.4rem', letterSpacing: '.5em', textAlign: 'center' }} placeholder="••••••" />
+                    </label>
+                    <label className="field"><span>New password</span><input type="password" value={pw.next} onChange={e => setPw(x => ({ ...x, next: e.target.value }))} required minLength={8} autoComplete="new-password" placeholder="8+ characters, letters and numbers" /></label>
+                    <label className="field"><span>Confirm new password</span><input type="password" value={pw.confirm} onChange={e => setPw(x => ({ ...x, confirm: e.target.value }))} required autoComplete="new-password" /></label>
+                    <button className="btn solid" disabled={busy || code.length !== 6}>{busy ? 'Saving…' : 'Reset password'} <span className="arr">→</span></button>
+                    {msg && <p className={`notice ${msg.ok ? 'ok' : 'err'}`} role="alert">{msg.t}</p>}
+                    <button type="button" className="btn sm" disabled={busy || cooldown > 0} onClick={sendCode} style={{ alignSelf: 'flex-start' }}>
+                        {cooldown > 0 ? `Resend code in ${cooldown}s` : 'Resend code'}
+                    </button>
+                </form>
+            )}
+            <button type="button" className="link-arrow" style={{ marginTop: 22, background: 'none', borderTop: 0, borderLeft: 0, borderRight: 0, cursor: 'pointer', color: 'var(--muted)' }} onClick={onBack}>← Back to sign in</button>
+        </>
+    )
+}
+
 export default function Login() {
-    const { user, loading, login, register, logout } = useAuth()
+    const { user, loading, login, register, logout, refresh } = useAuth()
     const [params] = useSearchParams()
     const navigate = useNavigate()
-    const [mode, setMode] = useState(params.get('mode') === 'register' ? 'register' : 'login')
+    const [mode, setMode] = useState(['register', 'forgot'].includes(params.get('mode')) ? params.get('mode') : 'login')
     const [f, setF] = useState({ name: '', email: '', password: '', confirm: '', mobile: '', regNo: '' })
     const [show, setShow] = useState(false)
     const [err, setErr] = useState('')
@@ -49,8 +119,12 @@ export default function Login() {
 
     return (
         <div className="auth-wrap">
-            <Seo title="Sign In" noindex />
+            <Seo title={mode === 'forgot' ? 'Reset password' : 'Sign In'} noindex />
             <motion.div className="auth-card" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}>
+                {mode === 'forgot' ? (
+                    <ForgotPassword initialEmail={f.email} onBack={() => { setMode('login'); setErr('') }}
+                        onDone={async u => { await refresh(); if (next?.startsWith('/')) navigate(next); else if (u.role !== 'member') navigate('/admin') }} />
+                ) : (<>
                 <span className="label">Member portal</span>
                 <h1 className="display h-md" style={{ marginTop: 14 }}>{mode === 'login' ? 'Sign in' : 'Create account'}</h1>
                 <div className="tabs" role="tablist">
@@ -89,8 +163,9 @@ export default function Login() {
                     </AnimatePresence>
                     <button className="btn solid" disabled={busy}>{busy ? 'Please wait…' : mode === 'login' ? 'Sign in' : 'Create account'} <span className="arr">→</span></button>
                     {err && <p className="notice err" role="alert">{err}</p>}
-                    <p className="muted mono" style={{ fontSize: '.7rem', margin: 0 }}>Passwords are hashed; sessions use secure HttpOnly cookies.</p>
+                    {mode === 'login' && <button type="button" className="link-arrow" style={{ alignSelf: 'flex-start', background: 'none', borderTop: 0, borderLeft: 0, borderRight: 0, cursor: 'pointer', color: 'var(--muted)' }} onClick={() => { setMode('forgot'); setErr('') }}>Forgot password?</button>}
                 </form>
+                </>)}
             </motion.div>
         </div>
     )

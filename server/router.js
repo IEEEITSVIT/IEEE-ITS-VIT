@@ -13,9 +13,10 @@ import { HttpError, fail, send, readBody, clientIp, str, isEmail, safeUrl, email
 import {
     currentUser, publicUser, hashPassword, verifyPassword, passwordProblem, sessionCookie, clearSessionCookie,
     memberTypeFor, assertNotThrottled, recordFailure, clearFailures, encrypt,
+    generateOtp, hashOtp, otpMatches, OTP_TTL_MS, OTP_MAX_ATTEMPTS,
 } from './auth.js'
 import { ensureReady } from './seed.js'
-import { notifyOrder, notifyQuery, notifySubscriber, sendMail, smtpConfig } from './mailer.js'
+import { notifyOrder, notifyQuery, notifySubscriber, sendMail, smtpConfig, sendPasswordResetCode } from './mailer.js'
 import { uploadAuth, deleteFile, imagekitConfigured } from './imagekit.js'
 import { DEFAULT_SETTINGS, DEFAULT_PRIVATE_SETTINGS, PUBLIC_SETTING_KEYS } from '../shared/defaults.js'
 import { CONTENT_TYPES, EVENT_FIELDS, MOMENT_FIELDS, SETTINGS_FORMS, PRIVATE_SETTINGS, slugify, eventStatus, getPath, setPath } from '../shared/cms.js'
@@ -247,6 +248,54 @@ route('PUT', '/api/auth/profile', async ({ user, body }) => {
     await getDb().run("UPDATE users SET name = ?, mobile = ?, reg_no = ?, avatar_url = ?, updated_at = datetime('now') WHERE id = ?",
         [name, mobile, regNo, safeUrl(body.picture ?? user.avatar_url), user.id])
     return { user: publicUser(await getDb().first('SELECT * FROM users WHERE id = ?', [user.id])) }
+})
+
+/* Forgot password: email a 6-digit code. The response never reveals whether the account exists. */
+route('POST', '/api/auth/forgot', async ({ req, body }) => {
+    const email = str(body.email, 200).toLowerCase()
+    if (!isEmail(email)) fail(400, 'Please enter a valid email address.')
+    const smtp = await smtpConfig()
+    if (!smtp.host || !smtp.user || !smtp.pass) fail(503, 'Password reset by email is not available right now. Please contact the chapter.')
+    const keys = [`reset-ip:${clientIp(req)}`, `reset-email:${email}`]
+    await assertNotThrottled(keys)
+    await recordFailure(keys) // counts requests per IP and per email (15-minute window)
+    const db = getDb()
+    const user = await db.first('SELECT * FROM users WHERE email = ? AND active = 1', [email])
+    if (user) {
+        const code = generateOtp()
+        await db.run('UPDATE password_resets SET used = 1 WHERE user_id = ? AND used = 0', [user.id])
+        await db.run('INSERT INTO password_resets (user_id, code_hash, expires_at) VALUES (?, ?, ?)', [user.id, hashOtp(code, user.id), Date.now() + OTP_TTL_MS])
+        const sent = await sendPasswordResetCode(user, code)
+        if (!sent.ok) console.error('[reset] email failed:', sent.error)
+    }
+    return { ok: true, message: 'If an account exists for that email, a 6-digit code is on its way.' }
+})
+
+route('POST', '/api/auth/reset', async ({ req, res, body }) => {
+    const email = str(body.email, 200).toLowerCase()
+    const code = str(body.code, 10).replace(/\s/g, '')
+    if (!/^\d{6}$/.test(code)) fail(400, 'Enter the 6-digit code from the email.')
+    const problem = passwordProblem(body.password)
+    if (problem) fail(400, problem)
+    const ipKey = [`reset-verify-ip:${clientIp(req)}`]
+    await assertNotThrottled(ipKey)
+    const db = getDb()
+    const user = await db.first('SELECT * FROM users WHERE email = ? AND active = 1', [email])
+    const reset = user && await db.first('SELECT * FROM password_resets WHERE user_id = ? AND used = 0 ORDER BY id DESC LIMIT 1', [user.id])
+    const invalid = async () => { await recordFailure(ipKey); fail(400, 'That code is invalid or has expired. Request a new one.') }
+    if (!reset || reset.expires_at < Date.now() || reset.attempts >= OTP_MAX_ATTEMPTS) return invalid()
+    if (!otpMatches(code, user.id, reset.code_hash)) {
+        await db.run('UPDATE password_resets SET attempts = attempts + 1 WHERE id = ?', [reset.id])
+        return invalid()
+    }
+    await db.run('UPDATE password_resets SET used = 1 WHERE user_id = ?', [user.id])
+    await db.run("UPDATE users SET password_hash = ?, token_version = token_version + 1, last_login_at = ?, updated_at = datetime('now') WHERE id = ?",
+        [await hashPassword(body.password), nowIso(), user.id])
+    await clearFailures([`email:${email}`, `reset-email:${email}`])
+    await db.run("INSERT INTO activity_logs (user_id, email, type) VALUES (?, ?, 'PASSWORD_RESET')", [user.id, email])
+    const fresh = await db.first('SELECT * FROM users WHERE id = ?', [user.id])
+    res.setHeader('Set-Cookie', sessionCookie(req, fresh))
+    return { user: publicUser(fresh) }
 })
 
 route('POST', '/api/auth/password', async ({ req, res, user, body }) => {

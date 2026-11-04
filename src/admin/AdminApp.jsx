@@ -86,6 +86,7 @@ function AdminLogin() {
                 <label className="adm-field"><span>Password</span><input className="adm-input" type="password" autoComplete="current-password" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} required /></label>
                 {error && <p className="adm-err" role="alert">{error}</p>}
                 <button className="adm-btn primary block" disabled={busy}>{busy ? 'Signing in…' : 'Sign in →'}</button>
+                <a href="/login?mode=forgot&next=/admin" className="adm-link">Forgot password?</a>
                 <a href="/" className="adm-link">← Back to website</a>
             </motion.form>
         </div>
@@ -104,7 +105,9 @@ export default function AdminApp() {
         if (!robots) { robots = document.createElement('meta'); robots.name = 'robots'; document.head.appendChild(robots) }
         robots.content = 'noindex, nofollow'
     }, [])
-    useEffect(() => { setNavOpen(false) }, [pathname])
+    // Close the mobile sidebar when the route changes (state reset keyed on pathname).
+    const [navPath, setNavPath] = useState(pathname)
+    if (navPath !== pathname) { setNavPath(pathname); setNavOpen(false) }
 
     if (loading) return <div className="admin-boot">Loading…</div>
     if (!isStaff) return <ToastProvider><AdminLogin /></ToastProvider>

@@ -27,6 +27,18 @@ CREATE TABLE IF NOT EXISTS login_attempts (
     window_end INTEGER NOT NULL            -- unix ms
 );
 
+-- One-time codes for "Forgot password" (emailed via SMTP). Only a hash of the code is stored.
+CREATE TABLE IF NOT EXISTS password_resets (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id    INTEGER NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    code_hash  TEXT NOT NULL,
+    expires_at INTEGER NOT NULL,           -- unix ms
+    attempts   INTEGER NOT NULL DEFAULT 0,
+    used       INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_password_resets_user ON password_resets (user_id, used);
+
 -- ───────────── CMS ─────────────
 -- Global key/value configuration: site identity, hero, about, footer, SEO, SMTP, …
 CREATE TABLE IF NOT EXISTS settings (

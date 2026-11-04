@@ -87,6 +87,20 @@ export const publicUser = u => u && ({
 
 export const memberTypeFor = email => /@(vit\.ac\.in|vitstudent\.ac\.in)$/i.test(email) ? 'VIT Student' : 'External Member'
 
+/* ───────────── One-time codes (password reset) ───────────── */
+export const OTP_TTL_MS = 10 * 60 * 1000
+export const OTP_MAX_ATTEMPTS = 5
+
+export const generateOtp = () => String(crypto.randomInt(0, 1_000_000)).padStart(6, '0')
+
+/** Codes are bound to the user and hashed with the server secret, so a leaked table row is useless. */
+export const hashOtp = (code, userId) => crypto.createHmac('sha256', secret()).update(`reset:${userId}:${code}`).digest('hex')
+
+export function otpMatches(code, userId, stored) {
+    const a = Buffer.from(hashOtp(String(code), userId)), b = Buffer.from(String(stored))
+    return a.length === b.length && crypto.timingSafeEqual(a, b)
+}
+
 /* ───────────── Throttling ───────────── */
 const WINDOW_MS = 15 * 60 * 1000
 const MAX_ATTEMPTS = 8

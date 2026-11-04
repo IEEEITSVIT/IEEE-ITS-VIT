@@ -131,6 +131,21 @@ export async function notifyQuery(q) {
     return Promise.all(tasks)
 }
 
+export async function sendPasswordResetCode(user, code) {
+    const html = `
+<div style="font-family:Inter,Segoe UI,Arial,sans-serif;background:#0b0c0e;padding:24px;color:#f2f0eb">
+  <div style="max-width:480px;margin:0 auto;background:#131518;border:1px solid #262a30;border-radius:14px;overflow:hidden">
+    <div style="background:#3d9bff;padding:16px 24px;font-weight:800;font-size:17px;color:#0b0c0e">Password reset code</div>
+    <div style="padding:24px">
+      <p style="margin:0 0 16px;color:#c8c8d0">Hi ${esc(user.name || 'there')},<br/>Use this code to reset your IEEE ITS VIT account password:</p>
+      <div style="font-family:'JetBrains Mono',Menlo,monospace;font-size:34px;font-weight:700;letter-spacing:10px;text-align:center;padding:16px;border:1px solid #262a30;border-radius:10px;color:#ffffff">${esc(code)}</div>
+      <p style="margin:16px 0 0;color:#8e939a;font-size:13px">The code expires in 10 minutes and can be used once. If you did not ask to reset your password, you can ignore this email — your password stays the same.</p>
+    </div>
+  </div>
+</div>`
+    return sendMail({ kind: 'password-reset', to: [user.email], subject: `${code} is your IEEE ITS password reset code`, html })
+}
+
 export async function notifySubscriber(email, list) {
     const n = await getSetting('notifications')
     if (!n.notifySubscribers) return
