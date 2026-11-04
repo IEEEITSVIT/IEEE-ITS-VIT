@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence, useScroll, useTransform, useReducedMotion } from 'framer-motion'
 import Img from './Img'
 import SmartLink from './SmartLink'
 import SocialIcon from './SocialIcon'
@@ -11,10 +11,13 @@ import { useSite } from '../context/SiteContext'
 const initials = name => String(name || '').split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase()
 
 /** Uniform portrait card — same 4:5 crop for everyone. */
-export function PersonCard({ person, subtitle, delay = 0, link }) {
+const ENTER = { left: { x: -70, y: 0 }, right: { x: 70, y: 0 }, up: { x: 0, y: -70 }, down: { x: 0, y: 70 } }
+
+export function PersonCard({ person, subtitle, delay = 0, link, from }) {
+    const enter = ENTER[from] || { x: 0, y: 24 }
     const socials = [['instagram', person.instagram], ['linkedin', person.linkedin], ['website', link]].filter(([, u]) => u)
     return (
-        <Reveal className="person" delay={delay}>
+        <Reveal className="person" delay={delay} x={enter.x} y={enter.y}>
             <Img src={person.image} alt={person.name} ratio="4x5" width={600} face focus={person.focus || '50% 30%'} fallback={person.initials || initials(person.name)}>
                 {socials.length > 0 && (
                     <div className="socials">
@@ -31,6 +34,46 @@ export function PersonCard({ person, subtitle, delay = 0, link }) {
 }
 
 const STATE_LABEL = { upcoming: 'Upcoming', ongoing: 'Live now', past: 'Past' }
+
+/* Columns of the people grid at the current width (mirrors the .g-4 breakpoints in site.css). */
+function useColumns() {
+    const get = () => (window.innerWidth <= 720 ? 2 : window.innerWidth <= 1000 ? 3 : 4)
+    const [cols, setCols] = useState(get)
+    useEffect(() => {
+        const on = () => setCols(get())
+        window.addEventListener('resize', on)
+        return () => window.removeEventListener('resize', on)
+    }, [])
+    return cols
+}
+
+/**
+ * People grid with motion on scroll: each column enters from its own side (left / up / down / right)
+ * and, while scrolling, alternate columns drift up and down in opposite directions.
+ * The card's own fade + black & white → colour hover is unchanged.
+ */
+export function MovingPeopleGrid({ people }) {
+    const ref = useRef(null)
+    const cols = useColumns()
+    const reduce = useReducedMotion()
+    const { scrollYProgress } = useScroll({ target: ref, offset: ['start end', 'end start'] })
+    const drift = cols > 2 ? 46 : 22
+    const rise = useTransform(scrollYProgress, [0, 1], [drift, -drift])
+    const sink = useTransform(scrollYProgress, [0, 1], [-drift, drift])
+    const dirs = cols === 4 ? ['left', 'up', 'down', 'right'] : cols === 3 ? ['left', 'up', 'right'] : ['left', 'right']
+    return (
+        <div ref={ref} className="grid g-4 people moving-grid">
+            {people.map((m, i) => {
+                const col = i % cols
+                return (
+                    <motion.div key={m.id} style={reduce ? undefined : { y: col % 2 ? sink : rise }}>
+                        <PersonCard person={m} from={reduce ? undefined : dirs[col]} delay={Math.floor(i / cols) * 0.04 + col * 0.06} />
+                    </motion.div>
+                )
+            })}
+        </div>
+    )
+}
 
 /** Event image: poster, else first photo from the event's album, else the chapter logo. */
 export function useEventImage() {

@@ -65,9 +65,11 @@ export const CONTENT_TYPES = {
     },
     nav_links: {
         label: 'Navigation Menu', singular: 'Menu link', group: 'Navigation & Links', title: 'label',
+        help: 'Links in the top bar. Choose “more” to put a link inside the More dropdown.',
         fields: [
             { name: 'label', label: 'Label', type: 'text', required: true },
             { name: 'url', label: 'Link', type: 'url', required: true },
+            { name: 'placement', label: 'Show in', type: 'select', options: ['main', 'more'] },
         ],
     },
     footer_links: {
@@ -225,6 +227,12 @@ export const SETTINGS_FORMS = {
             { name: 'address', label: 'Address', type: 'text' },
             { name: 'url', label: 'Public site URL (for SEO & sitemap)', type: 'url' },
             { name: 'madeWith', label: 'Footer credit text', type: 'text' },
+            { name: 'footerForm.enabled', label: 'Show contact form above the footer', type: 'toggle' },
+            { name: 'footerForm.overline', label: 'Footer form overline', type: 'text' },
+            { name: 'footerForm.title', label: 'Footer form title', type: 'text' },
+            { name: 'footerForm.text', label: 'Footer form text', type: 'textarea' },
+            { name: 'footerForm.button', label: 'Footer form button label', type: 'text' },
+            { name: 'footerForm.success', label: 'Footer form success message', type: 'text' },
         ],
     },
     home: {

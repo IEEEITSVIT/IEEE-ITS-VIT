@@ -22,10 +22,10 @@ export function RevealText({ text = '', as: Tag = 'span', className, delay = 0, 
 }
 
 /** Fade-up on scroll. */
-export function Reveal({ children, delay = 0, y = 24, className, as = 'div', ...rest }) {
+export function Reveal({ children, delay = 0, y = 24, x = 0, className, as = 'div', ...rest }) {
     const M = motion[as] || motion.div
     return (
-        <M className={className} initial={{ opacity: 0, y }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: '-60px' }}
+        <M className={className} initial={{ opacity: 0, y, x }} whileInView={{ opacity: 1, y: 0, x: 0 }} viewport={{ once: true, margin: '-60px' }}
             transition={{ duration: 0.7, delay, ease: EASE }} {...rest}>
             {children}
         </M>

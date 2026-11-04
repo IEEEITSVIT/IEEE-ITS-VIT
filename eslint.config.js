@@ -24,7 +24,7 @@ export default defineConfig([
     },
     rules: {
       // `motion` is used as <motion.div>; core no-unused-vars does not see JSX member usage.
-      'no-unused-vars': ['error', { varsIgnorePattern: '^([A-Z_]|motion$)' }],
+      'no-unused-vars': ['error', { varsIgnorePattern: '^([A-Z_]|motion$)', argsIgnorePattern: '^[A-Z_]' }],
     },
   },
   {
@@ -34,7 +34,7 @@ export default defineConfig([
   },
   {
     // Context/UI modules intentionally export hooks alongside components.
-    files: ['src/context/**/*.jsx', 'src/admin/ui.jsx', 'src/admin/fields.jsx'],
+    files: ['src/context/**/*.jsx', 'src/admin/ui.jsx', 'src/admin/fields.jsx', 'src/components/Cards.jsx', 'src/components/Reveal.jsx'],
     rules: { 'react-refresh/only-export-components': 'off' },
   },
 ])

@@ -4,6 +4,7 @@ import { lazy, Suspense, useEffect } from 'react'
 import { useSite } from './context/SiteContext'
 import Navbar from './components/Navbar'
 import Footer from './components/Footer'
+import FooterContact from './components/FooterContact'
 import Preloader from './components/Preloader'
 import ScrollProgress from './components/ScrollProgress'
 import ThemeApplier from './components/ThemeApplier'
@@ -113,6 +114,7 @@ function App() {
               </Routes>
             </Page>
           </AnimatePresence>
+          <FooterContact />
           <Footer />
         </>
       )}

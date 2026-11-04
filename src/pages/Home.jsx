@@ -8,7 +8,7 @@ import Seo from '../components/Seo'
 import Img from '../components/Img'
 import Lightbox from '../components/Lightbox'
 import { RevealText, Reveal } from '../components/Reveal'
-import { PersonCard, EventCard, Countdown, SectionHead } from '../components/Cards'
+import { MovingPeopleGrid, EventCard, Countdown, SectionHead } from '../components/Cards'
 import { formatEventDate } from '../../shared/cms.js'
 
 const EASE = [0.22, 1, 0.36, 1]
@@ -228,7 +228,7 @@ export default function Home() {
                 <section className="section">
                     <div className="wrap">
                         <SectionHead overline={home.boardOverline} title={home.boardTitle} text={home.boardSubtitle} link="/web-team" linkLabel={home.boardCta} />
-                        <div className="grid g-4 people">{board.map((m, i) => <PersonCard key={m.id} person={m} delay={(i % 4) * 0.06} />)}</div>
+                        <MovingPeopleGrid people={board} />
                     </div>
                 </section>
             )}

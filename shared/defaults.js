@@ -26,6 +26,14 @@ export const DEFAULT_SETTINGS = {
         address: 'VIT, Vellore, Tamil Nadu',
         url: 'https://ieee-its-1-tzbd.vercel.app',
         madeWith: 'Designed & built by the',
+        footerForm: {
+            enabled: true,
+            overline: 'Get in touch',
+            title: 'Have a question?',
+            text: 'Events, membership, collaborations or sponsorships — send us a message and the team will reply by email.',
+            button: 'Send message',
+            success: 'Message received — the team has been notified and will reply by email.',
+        },
     },
     home: {
         heroBadge: 'IEEE Information Theory Society — VIT Chapter',
@@ -323,7 +331,7 @@ export const DEFAULT_CONTENT = {
     nav_links: [
         { label: 'Home', url: '/' }, { label: 'Blogs', url: '/blogs' }, { label: 'Vlogs', url: '/vlogs' },
         { label: 'Events', url: '/timeline' }, { label: 'Moments', url: '/moments' }, { label: 'FAQ', url: '/faq' },
-        { label: 'Faculty', url: '/faculty' }, { label: 'Merch', url: '/merch' }, { label: 'Games', url: '/games' },
+        { label: 'Faculty', url: '/faculty' }, { label: 'Merch', url: '/merch', placement: 'more' }, { label: 'Games', url: '/games', placement: 'more' },
     ],
     footer_links: [
         { group: 'Quick Links', label: 'Home', url: '/' }, { group: 'Quick Links', label: 'Blogs', url: '/blogs' },
