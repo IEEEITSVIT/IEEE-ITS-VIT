@@ -10,6 +10,7 @@ import Lightbox from '../components/Lightbox'
 import { RevealText, Reveal } from '../components/Reveal'
 import { MovingPeopleGrid, EventCard, Countdown, SectionHead } from '../components/Cards'
 import { formatEventDate } from '../../shared/cms.js'
+import { label } from '../lib/safe'
 
 const EASE = [0.22, 1, 0.36, 1]
 
@@ -44,7 +45,7 @@ function Spotlight({ banners }) {
                             {b.subtitle && <p className="lead" style={{ margin: 0 }}>{b.subtitle}</p>}
                             {b.facts?.length > 0 && <ul className="spot-facts">{b.facts.map((f, k) => <li key={k} className="chip">{f}</li>)}</ul>}
                             <div className="hero-cta" style={{ marginTop: 6 }}>
-                                {b.ctaUrl && <SmartLink to={b.ctaUrl} className="btn solid">{b.ctaLabel} <span className="arr">→</span></SmartLink>}
+                                {b.ctaUrl && <SmartLink to={b.ctaUrl} className="btn solid">{label(b.ctaLabel)} <span className="arr">→</span></SmartLink>}
                                 {b.secondaryUrl && <SmartLink to={b.secondaryUrl} className="btn light">{b.secondaryLabel}</SmartLink>}
                             </div>
                         </div>
@@ -103,7 +104,7 @@ export default function Home() {
                         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.7, ease: EASE, duration: 0.8 }}>
                             <p className="lead" style={{ margin: 0 }}>{home.heroSubtitle}</p>
                             <div className="hero-cta">
-                                {home.primaryCta?.url && <SmartLink to={home.primaryCta.url} className="btn solid">{home.primaryCta.label} <span className="arr">→</span></SmartLink>}
+                                {home.primaryCta?.url && <SmartLink to={home.primaryCta.url} className="btn solid">{label(home.primaryCta.label)} <span className="arr">→</span></SmartLink>}
                                 {home.secondaryCta?.url && <SmartLink to={home.secondaryCta.url} className="btn">{home.secondaryCta.label}</SmartLink>}
                             </div>
                         </motion.div>
@@ -243,7 +244,7 @@ export default function Home() {
                                 <p>{home.chillText}</p>
                             </div>
                             <div className="hero-cta" style={{ marginTop: 0 }}>
-                                {home.chillCta?.url && <SmartLink to={home.chillCta.url} className="btn light">{home.chillCta.label} <span className="arr">→</span></SmartLink>}
+                                {home.chillCta?.url && <SmartLink to={home.chillCta.url} className="btn light">{label(home.chillCta.label)} <span className="arr">→</span></SmartLink>}
                                 {home.joinCta?.url && <SmartLink to={home.joinCta.url} className="btn">{home.joinCta.label}</SmartLink>}
                             </div>
                         </Reveal>

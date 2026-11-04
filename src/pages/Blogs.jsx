@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useSite } from '../context/SiteContext'
 import { api } from '../lib/api'
-import { sanitizeHtml } from '../lib/safe'
+import { sanitizeHtml, label } from '../lib/safe'
 import SmartLink from '../components/SmartLink'
 import Seo from '../components/Seo'
 import Img from '../components/Img'
@@ -99,7 +99,7 @@ export default function Blogs() {
                                 </div>
                             ))}
                         </div>
-                        {cfg.magazineCtaUrl && <SmartLink to={cfg.magazineCtaUrl} className="btn solid" style={{ marginTop: 24 }}>{cfg.magazineCtaLabel} <span className="arr">→</span></SmartLink>}
+                        {cfg.magazineCtaUrl && <SmartLink to={cfg.magazineCtaUrl} className="btn solid" style={{ marginTop: 24 }}>{label(cfg.magazineCtaLabel)} <span className="arr">→</span></SmartLink>}
                     </div>
                 </section>
             )}

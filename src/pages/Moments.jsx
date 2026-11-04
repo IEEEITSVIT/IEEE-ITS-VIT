@@ -37,7 +37,7 @@ export default function Moments() {
                     {years.map(y => (
                         <div className="tl-year" key={y}>
                             <h2 className="display h-lg">{y}</h2>
-                            <div className="grid g-2">
+                            <div className="grid g-2 albums">
                                 {albums.filter(a => ((a.effective_date || '').slice(0, 4) || '—') === y).map((a, i) => (
                                     <Reveal key={a.id} delay={(i % 2) * 0.06}>
                                         <div className="card" id={`album-${a.id}`}>

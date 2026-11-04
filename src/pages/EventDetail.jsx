@@ -8,7 +8,7 @@ import PageHeader from '../components/PageHeader'
 import { Reveal } from '../components/Reveal'
 import { Countdown, useEventImage } from '../components/Cards'
 import { formatEventDate } from '../../shared/cms.js'
-import { sanitizeHtml, sanitizeInline } from '../lib/safe'
+import { sanitizeHtml, sanitizeInline, label } from '../lib/safe'
 
 export default function EventDetail({ slug: fixedSlug }) {
     const params = useParams()
@@ -53,7 +53,7 @@ export default function EventDetail({ slug: fixedSlug }) {
                     <Reveal delay={0.1} className="form">
                         <div className="facts">{facts.map(([k, v]) => <div key={k}><span>{k}</span><b>{v}</b></div>)}</div>
                         {e.state === 'upcoming' && <Countdown date={e.start_date} />}
-                        {e.state !== 'past' && e.registration_url && <SmartLink to={e.registration_url} className="btn solid">{e.cta_label || 'Register'} <span className="arr">→</span></SmartLink>}
+                        {e.state !== 'past' && e.registration_url && <SmartLink to={e.registration_url} className="btn solid">{label(e.cta_label) || 'Register'} <span className="arr">→</span></SmartLink>}
                         {x.links?.map((l, i) => <SmartLink key={i} to={l.url} className="btn">{l.label}</SmartLink>)}
                     </Reveal>
                 </div>
@@ -103,7 +103,7 @@ export default function EventDetail({ slug: fixedSlug }) {
                     <div className="wrap">
                         <div className="band">
                             <div>{x.ctaTitle && <h2 className="display h-md">{x.ctaTitle.replace(/[^\p{L}\p{N}\s'&.,:!?—–-]/gu, '').trim()}</h2>}{x.ctaText && <p>{x.ctaText}</p>}{x.closing && <p>{x.closing}</p>}</div>
-                            {e.state !== 'past' && e.registration_url && <SmartLink to={e.registration_url} className="btn light">{e.cta_label} <span className="arr">→</span></SmartLink>}
+                            {e.state !== 'past' && e.registration_url && <SmartLink to={e.registration_url} className="btn light">{label(e.cta_label)} <span className="arr">→</span></SmartLink>}
                         </div>
                     </div>
                 </section>

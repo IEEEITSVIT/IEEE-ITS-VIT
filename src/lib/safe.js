@@ -24,3 +24,6 @@ export function img(url, { w, h, q = 80, face } = {}) {
     const tr = [`w-${w}`, h && `h-${h}`, h && 'c-maintain_ratio', face && 'fo-face', `q-${q}`, 'f-auto'].filter(Boolean).join(',')
     return `${url}${sep}tr=${tr}`
 }
+
+/** Button text from the CMS without a trailing arrow (buttons draw their own animated arrow). */
+export const label = text => String(text ?? '').replace(/[\s→›»>]+$/u, '')

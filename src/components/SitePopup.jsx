@@ -4,6 +4,7 @@ import { useLocation } from 'react-router-dom'
 import { useSite } from '../context/SiteContext'
 import SmartLink from './SmartLink'
 import Img from './Img'
+import { label } from '../lib/safe'
 
 const storageFor = f => (f === 'once' || f === 'once-per-day' ? localStorage : sessionStorage)
 
@@ -72,7 +73,7 @@ export default function SitePopup() {
                                 {!active.posterOnly && active.text && <p className="muted" style={{ margin: 0 }}>{active.text}</p>}
                                 {active.ctaUrl && (
                                     <SmartLink to={active.ctaUrl} onClick={() => setActive(null)} className="btn solid" style={{ alignSelf: 'flex-start' }}>
-                                        {active.ctaLabel || 'Learn more'} <span className="arr">→</span>
+                                        {label(active.ctaLabel) || 'Learn more'} <span className="arr">→</span>
                                     </SmartLink>
                                 )}
                             </div>

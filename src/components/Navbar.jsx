@@ -69,8 +69,11 @@ export default function Navbar() {
     const [lastPath, setLastPath] = useState(pathname)
     if (lastPath !== pathname) { setLastPath(pathname); setOpen(false) }
 
+    const headerRef = useRef(null)
+    const [menuTop, setMenuTop] = useState(0)
     useEffect(() => {
         document.body.style.overflow = open ? 'hidden' : ''
+        if (open && headerRef.current) setMenuTop(Math.max(0, headerRef.current.getBoundingClientRect().bottom))
         return () => { document.body.style.overflow = '' }
     }, [open])
 
@@ -82,7 +85,7 @@ export default function Navbar() {
 
     return (
         <>
-            <header className={`nav${scrolled ? ' scrolled' : ''}`}>
+            <header ref={headerRef} className={`nav${scrolled ? ' scrolled' : ''}`}>
                 <div className="wrap">
                     <Link to="/" className="nav-brand" aria-label={site.name || 'Home'}>
                         {site.logoRound && <img className="round" src={site.logoRound} alt="" />}
@@ -126,7 +129,7 @@ export default function Navbar() {
             </header>
             <AnimatePresence>
                 {open && (
-                    <motion.nav className="mobile-menu" initial={{ clipPath: 'inset(0 0 100% 0)' }} animate={{ clipPath: 'inset(0 0 0% 0)' }} exit={{ clipPath: 'inset(0 0 100% 0)' }} transition={{ duration: 0.5, ease: [0.76, 0, 0.24, 1] }}>
+                    <motion.nav className="mobile-menu" style={menuTop ? { top: menuTop } : undefined} initial={{ clipPath: 'inset(0 0 100% 0)' }} animate={{ clipPath: 'inset(0 0 0% 0)' }} exit={{ clipPath: 'inset(0 0 100% 0)' }} transition={{ duration: 0.5, ease: [0.76, 0, 0.24, 1] }}>
                         {links.map((l, i) => (
                             <motion.div key={l.id} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 + i * 0.03 }}>
                                 <SmartLink to={l.url} className={active(l.url) ? 'active' : ''}>{l.label}</SmartLink>

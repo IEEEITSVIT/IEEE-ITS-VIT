@@ -154,8 +154,9 @@ button { font: inherit; color: inherit; }
 .nav-burger.open span:nth-child(2) { opacity: 0; }
 .nav-burger.open span:nth-child(3) { transform: translateY(-5px) rotate(-45deg); }
 .mobile-menu { position: fixed; inset: var(--nav-h) 0 0 0; z-index: 49; background: var(--bg); padding: 24px var(--gutter) 40px; overflow-y: auto; display: flex; flex-direction: column; }
-.mobile-menu a, .mobile-menu button.mm-link { font-family: var(--font-display); font-size: 2rem; font-weight: 700; text-transform: uppercase; letter-spacing: -.03em; padding: 10px 0; border-bottom: 1px solid var(--line); background: none; border-left: 0; border-right: 0; border-top: 0; text-align: left; cursor: pointer; }
-.mobile-menu a.active { color: var(--accent); }
+.mobile-menu > div:not(.mm-actions) > a, .mobile-menu button.mm-link { display: block; width: 100%; font-family: var(--font-display); font-size: 2rem; font-weight: 700; text-transform: uppercase; letter-spacing: -.03em; padding: 10px 0; border-bottom: 1px solid var(--line); background: none; border-left: 0; border-right: 0; border-top: 0; text-align: left; cursor: pointer; }
+.mobile-menu > div:not(.mm-actions) > a.active { color: var(--accent); }
+.mobile-menu .mm-actions .btn { flex: 1 1 0; height: 48px; }
 .mobile-menu .mm-actions { display: flex; gap: 10px; margin-top: 28px; flex-wrap: wrap; }
 @media (max-width: 1080px) {
   .nav-links, .nav-actions .desk { display: none; }
@@ -455,3 +456,84 @@ button { font: inherit; color: inherit; }
 /* board: give drifting columns room so the first/last rows never touch neighbouring sections */
 .moving-grid { padding: 56px 0; overflow: visible; }
 @media (max-width: 720px) { .moving-grid { padding: 28px 0; } }
+
+/* =====================================================================
+   Mobile refinements
+   ===================================================================== */
+html { -webkit-tap-highlight-color: transparent; }
+body { text-rendering: optimizeLegibility; }
+
+@media (max-width: 760px) {
+  :root { --nav-h: 64px; }
+  .section { padding: clamp(44px, 12vw, 64px) 0; }
+  .section.tight { padding: 32px 0; }
+  .sec-head { margin-bottom: 28px; gap: 14px; }
+  .page-head { padding: 40px 0 28px; }
+  .lead { font-size: 1rem; }
+  .h-xl { font-size: clamp(2.3rem, 11vw, 3.4rem); }
+  .h-lg { font-size: clamp(1.9rem, 8.6vw, 2.6rem); }
+  .nav-brand img.round { width: 36px; height: 36px; }
+  .nav-brand img.text { height: 18px; }
+
+  /* iOS Safari zooms into fields below 16px — keep every field at 16px */
+  .input, .field input, .field textarea, .field select, .game-input { font-size: 16px; }
+
+  /* announcement: one compact line */
+  .announce .wrap { flex-wrap: nowrap; justify-content: flex-start; gap: 10px; min-height: 34px; padding-right: 40px; text-align: left; }
+  .announce .wrap > span { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .announce .wrap > a { flex: none; white-space: nowrap; }
+
+  /* hero */
+  .hero { min-height: 0; padding-top: 36px; }
+  .hero-title { margin: 16px 0 20px; }
+  .hero-cta { gap: 10px; }
+  .hero-cta .btn { flex: 1 1 auto; }
+  .ticker { margin-top: 40px; padding: 12px 0; }
+  .stat { padding: 14px 12px; }
+
+  /* popup → bottom sheet */
+  .overlay { place-items: end center; padding: 0; }
+  .overlay > .modal { width: 100%; max-height: 88svh; border-radius: 18px 18px 0 0; border-bottom: 0; }
+
+  /* spotlight: the title already names the event */
+  .spot-logo { display: none; }
+
+  /* domains: tighter cells */
+  .domain { padding: 20px 18px 22px; gap: 8px; }
+
+  /* timeline: compact rows with a square thumbnail */
+  .tl-year { padding: 20px 0; gap: 12px; }
+  .tl-item { grid-template-columns: 96px minmax(0, 1fr); gap: 14px; padding: 12px; align-items: start; }
+  .tl-item .frame { aspect-ratio: 1; }
+  .tl-item .frame .ph img { width: 36px; height: 36px; }
+  .tl-item .card-body p { -webkit-line-clamp: 2; font-size: .88rem; }
+  .tl-item .card-meta { flex-wrap: wrap; }
+  .tl-item .hero-cta { margin-top: 4px !important; gap: 6px 14px; }
+  .tl-item .link-arrow { font-size: .7rem; }
+
+  /* moments: two albums per row */
+  .grid.g-2.albums { grid-template-columns: 1fr 1fr; gap: 12px; }
+  .albums .display.h-sm { font-size: .92rem; }
+  .albums .card { gap: 8px; }
+
+  /* faculty: smaller portrait */
+  .split.portrait-left > .frame { max-width: 220px; }
+
+  /* footer */
+  .footer { padding-top: 44px; }
+  .footer-top { gap: 26px; }
+  .footer-word { margin: 32px 0 20px; }
+  .footer-bottom { flex-direction: column; gap: 6px; }
+
+  /* touch targets */
+  .icon-btn { width: 40px; height: 40px; }
+  .link-arrow { padding: 6px 0; }
+  .faq-row button { padding: 20px 0; }
+}
+
+@media (max-width: 380px) {
+  .countdown strong { font-size: 1.4rem; }
+  .stats .stat strong { font-size: 1.5rem; }
+  .grid.g-4.people { gap: 10px; }
+  .person h3 { font-size: .92rem; }
+}

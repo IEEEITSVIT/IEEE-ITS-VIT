@@ -6,6 +6,7 @@ import Seo from '../components/Seo'
 import Img from '../components/Img'
 import { Reveal } from '../components/Reveal'
 import { formatEventDate } from '../../shared/cms.js'
+import { label } from '../lib/safe'
 import { useEventImage } from '../components/Cards'
 
 /* Events are grouped by year and ordered by date. Upcoming / Live / Past status is computed
@@ -45,7 +46,7 @@ export default function EventTimeline() {
                                                 {e.summary && <p>{e.summary}</p>}
                                                 <div className="hero-cta" style={{ marginTop: 6 }}>
                                                     <Link to={`/events/${e.slug}`} className="link-arrow">Details →</Link>
-                                                    {e.state !== 'past' && e.registration_url && <SmartLink to={e.registration_url} className="link-arrow">{e.cta_label} →</SmartLink>}
+                                                    {e.state !== 'past' && e.registration_url && <SmartLink to={e.registration_url} className="link-arrow">{label(e.cta_label)} →</SmartLink>}
                                                     {count > 0 && <Link to={`/moments#album-${albums[0].id}`} className="link-arrow">{count} photos →</Link>}
                                                 </div>
                                             </div>
