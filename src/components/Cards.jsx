@@ -12,9 +12,10 @@ const initials = name => String(name || '').split(/\s+/).filter(Boolean).slice(0
 
 /** Uniform portrait card — same 4:5 crop for everyone. */
 const ENTER = { left: { x: -70, y: 0 }, right: { x: 70, y: 0 }, up: { x: 0, y: -70 }, down: { x: 0, y: 70 } }
+const near = v => (typeof window !== 'undefined' && window.innerWidth <= 720 ? Math.sign(v) * 28 : v)
 
 export function PersonCard({ person, subtitle, delay = 0, link, from }) {
-    const enter = ENTER[from] || { x: 0, y: 24 }
+    const enter = ENTER[from] ? { x: near(ENTER[from].x), y: near(ENTER[from].y) } : { x: 0, y: 24 }
     const socials = [['instagram', person.instagram], ['linkedin', person.linkedin], ['website', link]].filter(([, u]) => u)
     return (
         <Reveal className="person" delay={delay} x={enter.x} y={enter.y}>
@@ -57,7 +58,8 @@ export function MovingPeopleGrid({ people }) {
     const cols = useColumns()
     const reduce = useReducedMotion()
     const { scrollYProgress } = useScroll({ target: ref, offset: ['start end', 'end start'] })
-    const drift = cols > 2 ? 46 : 22
+    // On phones (two columns) the cards only slide in; drifting columns look uneven on a narrow screen.
+    const drift = cols > 2 ? 46 : 0
     const rise = useTransform(scrollYProgress, [0, 1], [drift, -drift])
     const sink = useTransform(scrollYProgress, [0, 1], [-drift, drift])
     const dirs = cols === 4 ? ['left', 'up', 'down', 'right'] : cols === 3 ? ['left', 'up', 'right'] : ['left', 'right']
@@ -66,7 +68,7 @@ export function MovingPeopleGrid({ people }) {
             {people.map((m, i) => {
                 const col = i % cols
                 return (
-                    <motion.div key={m.id} style={reduce ? undefined : { y: col % 2 ? sink : rise }}>
+                    <motion.div key={m.id} style={reduce || !drift ? undefined : { y: col % 2 ? sink : rise }}>
                         <PersonCard person={m} from={reduce ? undefined : dirs[col]} delay={Math.floor(i / cols) * 0.04 + col * 0.06} />
                     </motion.div>
                 )
