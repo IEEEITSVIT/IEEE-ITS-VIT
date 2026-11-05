@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '../hooks/useAuth'
 import { useSite } from '../context/SiteContext'
 import SmartLink from './SmartLink'
+import { useScrollLock } from '../lib/scrollLock'
 
 const canHover = () => window.matchMedia?.('(hover: hover) and (pointer: fine)').matches
 
@@ -71,10 +72,9 @@ export default function Navbar() {
 
     const headerRef = useRef(null)
     const [menuTop, setMenuTop] = useState(0)
+    useScrollLock(open)
     useEffect(() => {
-        document.body.style.overflow = open ? 'hidden' : ''
         if (open && headerRef.current) setMenuTop(Math.max(0, headerRef.current.getBoundingClientRect().bottom))
-        return () => { document.body.style.overflow = '' }
     }, [open])
 
     const links = list('nav_links')

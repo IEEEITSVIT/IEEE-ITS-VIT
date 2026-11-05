@@ -1,17 +1,18 @@
 import { useCallback, useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { img } from '../lib/safe'
+import { useScrollLock } from '../lib/scrollLock'
 
 export default function Lightbox({ photos, title, start = 0, onClose }) {
     const [i, setI] = useState(start)
     const [dir, setDir] = useState(1)
     const go = useCallback(step => { setDir(step); setI(x => (x + step + photos.length) % photos.length) }, [photos.length])
 
+    useScrollLock(true)
     useEffect(() => {
         const onKey = e => { if (e.key === 'Escape') onClose(); if (e.key === 'ArrowRight') go(1); if (e.key === 'ArrowLeft') go(-1) }
         window.addEventListener('keydown', onKey)
-        document.body.style.overflow = 'hidden'
-        return () => { window.removeEventListener('keydown', onKey); document.body.style.overflow = '' }
+        return () => window.removeEventListener('keydown', onKey)
     }, [go, onClose])
 
     return (

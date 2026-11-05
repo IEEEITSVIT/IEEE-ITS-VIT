@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState } from 'react'
 import { useSite } from '../context/SiteContext'
 import PageHeader from '../components/PageHeader'
 import Seo from '../components/Seo'
@@ -8,20 +8,20 @@ import Section from '../components/Section'
    GAME 1: Binary Decoder
    Convert the shown decimal number to binary
 ───────────────────────────────────────────────*/
+const randomTarget = () => Math.floor(Math.random() * 128) + 1
+
 function BinaryGame() {
-    const [target, setTarget] = useState(0)
+    const [target, setTarget] = useState(randomTarget)
     const [input, setInput] = useState('')
     const [score, setScore] = useState(0)
     const [feedback, setFeedback] = useState('')
     const [streak, setStreak] = useState(0)
 
-    const newRound = useCallback(() => {
-        setTarget(Math.floor(Math.random() * 128) + 1)
+    const newRound = () => {
+        setTarget(randomTarget())
         setInput('')
         setFeedback('')
-    }, [])
-
-    useEffect(() => { newRound() }, [])
+    }
 
     const check = () => {
         const correct = target.toString(2)
@@ -73,23 +73,24 @@ const GATES = [
     { name: 'NOR', fn: (a, b) => +(!(a | b)) },
 ]
 
+function randomGateQuestion() {
+    const gate = GATES[Math.floor(Math.random() * GATES.length)]
+    const a = Math.round(Math.random())
+    const b = Math.round(Math.random())
+    return { gate, a, b, ans: gate.fn(a, b) }
+}
+
 function LogicGame() {
-    const [q, setQ] = useState(null)
+    const [q, setQ] = useState(randomGateQuestion)
     const [score, setScore] = useState(0)
     const [feedback, setFeedback] = useState('')
 
-    const newQ = useCallback(() => {
-        const gate = GATES[Math.floor(Math.random() * GATES.length)]
-        const a = Math.round(Math.random())
-        const b = Math.round(Math.random())
-        setQ({ gate, a, b, ans: gate.fn(a, b) })
+    const newQ = () => {
+        setQ(randomGateQuestion())
         setFeedback('')
-    }, [])
-
-    useEffect(() => { newQ() }, [])
+    }
 
     const answer = (val) => {
-        if (!q) return
         if (val === q.ans) {
             setScore(s => s + 10)
             setFeedback('Correct!')
@@ -99,7 +100,6 @@ function LogicGame() {
         setTimeout(newQ, 1000)
     }
 
-    if (!q) return null
     return (
         <div className="mini-game">
             <div className="game-header">
@@ -136,23 +136,24 @@ const MORSE = {
 }
 const MORSE_ENTRIES = Object.entries(MORSE)
 
+function randomMorseQuestion() {
+    const [code, letter] = MORSE_ENTRIES[Math.floor(Math.random() * MORSE_ENTRIES.length)]
+    return { code, letter }
+}
+
 function MorseGame() {
-    const [q, setQ] = useState(null)
+    const [q, setQ] = useState(randomMorseQuestion)
     const [input, setInput] = useState('')
     const [score, setScore] = useState(0)
     const [feedback, setFeedback] = useState('')
 
-    const newQ = useCallback(() => {
-        const [code, letter] = MORSE_ENTRIES[Math.floor(Math.random() * MORSE_ENTRIES.length)]
-        setQ({ code, letter })
+    const newQ = () => {
+        setQ(randomMorseQuestion())
         setInput('')
         setFeedback('')
-    }, [])
-
-    useEffect(() => { newQ() }, [])
+    }
 
     const check = () => {
-        if (!q) return
         if (input.trim().toUpperCase() === q.letter) {
             setScore(s => s + 10)
             setFeedback('Correct!')
@@ -162,7 +163,6 @@ function MorseGame() {
         }
     }
 
-    if (!q) return null
     return (
         <div className="mini-game">
             <div className="game-header">
@@ -279,7 +279,7 @@ export default function Games() {
                 <div className="wrap">
                     <div className="game-tabs">
                         {GAME_LIST.map(g => (
-                            <button key={g.id} className={`game-tab${active === g.id ? ' active' : ''}`} onClick={() => setActive(g.id)}>{g.label.replace(/^\S+\s/, '')}</button>
+                            <button key={g.id} className={`game-tab${active === g.id ? ' active' : ''}`} onClick={() => setActive(g.id)}>{g.label}</button>
                         ))}
                     </div>
                     <div className="game-stage"><ActiveGame key={active} /></div>

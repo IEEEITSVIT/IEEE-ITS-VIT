@@ -29,7 +29,7 @@ export default defineConfig([
   },
   {
     // Server code (Vercel function, API, scripts) runs on Node.
-    files: ['server/**/*.js', 'api/**/*.js', 'scripts/**/*.js', 'shared/**/*.js', '*.config.js', 'server.js', 'migrate.js'],
+    files: ['server/**/*.js', 'api/**/*.js', 'scripts/**/*.js', 'shared/**/*.js', '*.config.js'],
     languageOptions: { globals: { ...globals.node } },
   },
   {

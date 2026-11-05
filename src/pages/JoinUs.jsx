@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { api } from '../lib/api'
@@ -14,7 +14,12 @@ export default function JoinUs() {
     const [pw, setPw] = useState({ current: '', next: '' })
     const [pwMsg, setPwMsg] = useState(null)
 
-    useEffect(() => { if (user) setP({ name: user.name || '', mobile: user.mobile || '', regNo: user.regNo || '' }) }, [user])
+    // Refill the form whenever the signed-in user (or their saved profile) changes.
+    const [syncedUser, setSyncedUser] = useState(null)
+    if (user && user !== syncedUser) {
+        setSyncedUser(user)
+        setP({ name: user.name || '', mobile: user.mobile || '', regNo: user.regNo || '' })
+    }
 
     if (!user) {
         return (

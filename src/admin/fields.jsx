@@ -51,9 +51,15 @@ export function MediaPicker({ open, onClose, onPick, multiple }) {
     const toast = useToast()
     const fileRef = useRef()
 
+    // Start with an empty selection each time the picker opens.
+    const [wasOpen, setWasOpen] = useState(open)
+    if (open !== wasOpen) {
+        setWasOpen(open)
+        if (open) setSelected([])
+    }
+
     useEffect(() => {
         if (!open) return
-        setSelected([])
         api.get('/admin/media').then(r => { setItems(r.items); setIkReady(r.imagekit) }).catch(e => toast(e.message, 'error'))
     }, [open, toast])
 

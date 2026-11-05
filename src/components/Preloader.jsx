@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useSite } from '../context/SiteContext'
+import { useScrollLock } from '../lib/scrollLock'
 
 const SEEN_KEY = 'ieee_its_intro_seen'
 const EASE = [0.76, 0, 0.24, 1]
@@ -18,19 +19,18 @@ export default function Preloader() {
         try { if (sessionStorage.getItem(SEEN_KEY) && ready) return false } catch { /* storage blocked */ }
         return true
     })
+    const [seen] = useState(() => {
+        try { return !!sessionStorage.getItem(SEEN_KEY) } catch { return false }
+    })
     const [count, setCount] = useState(0)
 
     // Once settings arrive, respect the admin's preference.
-    useEffect(() => {
-        if (!a || !show) return
-        let seen = false
-        try { seen = !!sessionStorage.getItem(SEEN_KEY) } catch { /* ignore */ }
-        if (a.preloader === false || (seen && a.preloaderMode !== 'always')) setShow(false)
-    }, [a, show])
+    const skip = !!a && (a.preloader === false || (seen && a.preloaderMode !== 'always'))
+    const visible = show && !skip
+    useScrollLock(visible)
 
     useEffect(() => {
-        if (!show) return
-        document.body.style.overflow = 'hidden'
+        if (!visible) return
         const t0 = performance.now()
         let raf
         const tick = t => {
@@ -39,24 +39,24 @@ export default function Preloader() {
             raf = requestAnimationFrame(tick)
         }
         raf = requestAnimationFrame(tick)
-        return () => { cancelAnimationFrame(raf); document.body.style.overflow = '' }
-    }, [show, loaded])
+        return () => cancelAnimationFrame(raf)
+    }, [visible, loaded])
 
     useEffect(() => {
-        if (show && count >= 99.5 && ready) {
+        if (visible && count >= 99.5 && ready) {
             const t = setTimeout(() => {
                 setShow(false)
                 try { sessionStorage.setItem(SEEN_KEY, '1') } catch { /* ignore */ }
             }, 300)
             return () => clearTimeout(t)
         }
-    }, [count, show, ready])
+    }, [count, visible, ready])
 
     const word = a?.preloaderWord || settings.site?.shortName || ''
     const lines = a?.preloaderLines || []
     return (
         <AnimatePresence>
-            {show && (
+            {visible && (
                 <motion.div className="loader" exit={{ y: '-100%' }} transition={{ duration: 0.9, ease: EASE }} aria-hidden="true">
                     <div className="loader-top">
                         <span>{settings.home?.heroBadge}</span>

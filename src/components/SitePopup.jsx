@@ -5,6 +5,7 @@ import { useSite } from '../context/SiteContext'
 import SmartLink from './SmartLink'
 import Img from './Img'
 import { label } from '../lib/safe'
+import { useScrollLock } from '../lib/scrollLock'
 
 const storageFor = f => (f === 'once' || f === 'once-per-day' ? localStorage : sessionStorage)
 
@@ -49,10 +50,7 @@ export default function SitePopup() {
         return () => clearTimeout(t)
     }, [candidate, pathname, preview])
 
-    useEffect(() => {
-        document.body.style.overflow = active ? 'hidden' : ''
-        return () => { document.body.style.overflow = '' }
-    }, [active])
+    useScrollLock(!!active)
 
     useEffect(() => { setActive(null) }, [pathname])
 

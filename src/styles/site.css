@@ -185,8 +185,11 @@ button { font: inherit; color: inherit; }
 .stat:first-child { border-left: none; }
 .stat strong { display: block; font-family: var(--font-display); font-size: clamp(1.8rem, 3.4vw, 2.8rem); line-height: 1; letter-spacing: -.03em; }
 .stat span { font-family: var(--font-mono); font-size: .7rem; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
-.ticker { margin-top: clamp(40px, 7vw, 80px); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); overflow: hidden; white-space: nowrap; padding: 16px 0; }
-.ticker-track { display: inline-flex; gap: 48px; animation: ticker 40s linear infinite; padding-left: 48px; }
+.ticker { margin-top: clamp(40px, 7vw, 80px); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); overflow: hidden; white-space: nowrap; padding: 16px 0;
+  /* Soft edges so words glide in and out instead of being cut off. */
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent); mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent); }
+.ticker-track { display: inline-flex; gap: 48px; animation: ticker 80s linear infinite; padding-left: 48px; will-change: transform; }
+.ticker:hover .ticker-track { animation-play-state: paused; }
 .ticker-track span { font-family: var(--font-display); font-weight: 700; font-size: clamp(1.1rem, 2.4vw, 1.6rem); text-transform: uppercase; letter-spacing: -.02em; display: inline-flex; gap: 48px; align-items: center; }
 .ticker-track span::after { content: '✳'; color: var(--accent); font-size: .8em; }
 @keyframes ticker { to { transform: translateX(-50%); } }
@@ -446,6 +449,8 @@ button { font: inherit; color: inherit; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; scroll-behavior: auto !important; }
+  /* The topic marquee keeps moving (at half speed) so its words never sit cut off at the edge; hover pauses it. */
+  .ticker-track { animation-duration: 160s !important; animation-iteration-count: infinite !important; }
 }
 [data-portraits="color"] .person .frame img { filter: none; }
 .split.portrait-left { grid-template-columns: minmax(0, 280px) minmax(0, 1fr); align-items: center; gap: clamp(20px, 4vw, 48px); }

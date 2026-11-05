@@ -1,7 +1,6 @@
 import { Fragment, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import picNames from '../data/carouselImages.json'
 import { useSite } from '../context/SiteContext'
 import SmartLink from '../components/SmartLink'
 import Seo from '../components/Seo'
@@ -77,7 +76,6 @@ export default function Home() {
     const recent = useMemo(() => [...events].filter(e => e.show_in_timeline).sort((a, b) => b.start_date.localeCompare(a.start_date)).filter(e => e.id !== upcoming[0]?.id).slice(0, 3), [events, upcoming])
     const gallery = useMemo(() => {
         const items = [
-            ...(picNames || []).map(n => ({ image: `/pic/${n}`, caption: '' })),
             ...list('gallery'),
             ...moments.filter(m => m.show_on_home).flatMap(m => m.photos.map(p => ({ image: p, caption: m.title }))),
         ]
@@ -236,7 +234,8 @@ export default function Home() {
                 </div>
                 {words.length > 0 && (
                     <div className="ticker" aria-hidden="true">
-                        <div className="ticker-track">{[...words, ...words].map((w, i) => <span key={i}>{w}</span>)}</div>
+                        {/* Four copies: the track scrolls by half its width, so two copies always fill even very wide screens. */}
+                        <div className="ticker-track">{[...words, ...words, ...words, ...words].map((w, i) => <span key={i}>{w}</span>)}</div>
                     </div>
                 )}
             </Section>
