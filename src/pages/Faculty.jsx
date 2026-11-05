@@ -4,6 +4,7 @@ import Seo from '../components/Seo'
 import Img from '../components/Img'
 import SmartLink from '../components/SmartLink'
 import { Reveal } from '../components/Reveal'
+import Section from '../components/Section'
 
 export default function Faculty() {
     const { list } = useSite()
@@ -11,7 +12,7 @@ export default function Faculty() {
         <>
             <Seo />
             <PageHeader page="faculty" />
-            <section className="section" style={{ borderTop: 0 }}>
+            <Section id="faculty.list" className="section" style={{ borderTop: 0 }}>
                 <div className="wrap form" style={{ gap: 28 }}>
                     {list('faculty').map((f, i) => (
                         <Reveal key={f.id} delay={i * 0.08} className="boxed">
@@ -28,7 +29,7 @@ export default function Faculty() {
                         </Reveal>
                     ))}
                 </div>
-            </section>
+            </Section>
         </>
     )
 }

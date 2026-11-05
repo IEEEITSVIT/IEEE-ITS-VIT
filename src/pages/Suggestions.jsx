@@ -5,6 +5,7 @@ import { api } from '../lib/api'
 import PageHeader from '../components/PageHeader'
 import Seo from '../components/Seo'
 import { Reveal } from '../components/Reveal'
+import Section from '../components/Section'
 
 export default function Suggestions() {
     const { user } = useAuth()
@@ -20,7 +21,7 @@ export default function Suggestions() {
         <>
             <Seo />
             <PageHeader page="suggestions" />
-            <section className="section" style={{ borderTop: 0 }}>
+            <Section id="suggestions.main" className="section" style={{ borderTop: 0 }}>
                 <div className="wrap" style={{ maxWidth: 820 }}>
                     {!user ? (
                         <p className="notice">Sign in to share suggestions — it helps us credit great ideas and follow up. <Link to="/login?next=/suggestions" className="accent">Sign in →</Link></p>
@@ -34,7 +35,7 @@ export default function Suggestions() {
                         </Reveal>
                     )}
                 </div>
-            </section>
+            </Section>
         </>
     )
 }

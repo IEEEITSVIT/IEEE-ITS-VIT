@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { api } from '../../lib/api'
 import { useAuth } from '../../hooks/useAuth'
 import { PageTitle, Badge, Spinner, useToast, useConfirm, useLoader, fmtDate, Modal, Switch, downloadCsv } from '../ui'
+import Icon from '../icons'
 
 const ROLES = { member: 'Member', editor: 'Editor — manages content, events, media, orders & queries', admin: 'Admin — everything incl. users, email & audit log' }
 
@@ -72,7 +73,7 @@ export default function Users() {
                                     <td className="nowrap"><small>{fmtDate(u.lastLoginAt)}</small></td>
                                     <td className="nowrap">
                                         <button className="adm-btn small" onClick={() => { setResetFor(u); setPw('') }}>Reset password</button>
-                                        {u.id !== me.id && <button className="adm-btn small ghost danger-text" onClick={() => remove(u)}>🗑</button>}
+                                        {u.id !== me.id && <button className="adm-btn small ghost danger-text" onClick={() => remove(u)} aria-label="Delete"><Icon name="trash" size={16} /></button>}
                                     </td>
                                 </tr>
                             ))}

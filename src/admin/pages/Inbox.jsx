@@ -48,7 +48,7 @@ function InboxTable({ kind }) {
                 <button className="adm-btn" disabled={!rows.length} onClick={() => downloadCsv(`ieee-its-${kind}-${new Date().toISOString().slice(0, 10)}.csv`, rows)}>⬇ CSV</button>
             </PageTitle>
             {isOrders && rows.length > 0 && <p className="adm-hint">{rows.length} orders · {rows.reduce((s, r) => s + (r.status !== 'Cancelled' ? r.qty : 0), 0)} items · ₹{total.toLocaleString('en-IN')} booked value</p>}
-            {loading ? <Spinner /> : rows.length === 0 ? <Empty icon={isOrders ? '📦' : '✉️'}>Nothing here yet.</Empty> : (
+            {loading ? <Spinner /> : rows.length === 0 ? <Empty icon={isOrders ? 'box' : 'mail'}>Nothing here yet.</Empty> : (
                 <div className="adm-table-wrap">
                     <table className="adm-table">
                         <thead>
@@ -126,7 +126,7 @@ export function Subscribers() {
                 <button className="adm-btn" onClick={() => navigator.clipboard.writeText(rows.map(r => r.email).join(', ')).then(() => toast('Emails copied'))}>Copy emails</button>
                 <button className="adm-btn" disabled={!rows.length} onClick={() => downloadCsv('ieee-its-subscribers.csv', rows)}>⬇ CSV</button>
             </PageTitle>
-            {loading ? <Spinner /> : rows.length === 0 ? <Empty icon="📬">No subscribers yet.</Empty> : (
+            {loading ? <Spinner /> : rows.length === 0 ? <Empty icon="inbox">No subscribers yet.</Empty> : (
                 <div className="adm-table-wrap">
                     <table className="adm-table">
                         <thead><tr><th>Email</th><th>List</th><th>Subscribed</th><th /></tr></thead>

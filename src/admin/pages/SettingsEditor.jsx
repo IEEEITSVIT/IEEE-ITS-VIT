@@ -1,9 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { api } from '../../lib/api'
 import { useSite } from '../../context/SiteContext'
 import { SETTINGS_FORMS } from '../../../shared/cms.js'
 import { FieldForm } from '../fields'
 import { PageTitle, Spinner, useToast } from '../ui'
+import { PreviewFrame } from '../Preview'
+import Icon from '../icons'
 
 const PREVIEW = { home: '/', pages: '/blogs', site: '/', seo: '/', appearance: '/', merch: '/merch', blogs: '/blogs', vlogs: '/vlogs', webteam: '/web-team', games: '/games' }
 
@@ -14,6 +16,7 @@ export default function SettingsEditor({ settingKey }) {
     const [value, setValue] = useState(null)
     const [initial, setInitial] = useState('')
     const [saving, setSaving] = useState(false)
+    const [showPreview, setShowPreview] = useState(() => window.innerWidth >= 1100)
 
     useEffect(() => {
         setValue(null)
@@ -21,6 +24,7 @@ export default function SettingsEditor({ settingKey }) {
     }, [settingKey, toast])
 
     const dirty = value && JSON.stringify(value) !== initial
+    const patch = useMemo(() => (value ? { settings: { [settingKey]: value } } : null), [value, settingKey])
 
     const save = async () => {
         setSaving(true)
@@ -36,16 +40,20 @@ export default function SettingsEditor({ settingKey }) {
     return (
         <>
             <PageTitle title={form.label}>
-                {settingKey === 'appearance' && <button className="adm-btn ghost" onClick={() => { sessionStorage.removeItem('ieee_its_intro_seen'); window.open('/', '_blank') }}>Replay intro ↗</button>}
-                <a className="adm-btn ghost" href={PREVIEW[settingKey] || '/'} target="_blank" rel="noreferrer">Preview ↗</a>
-                <button className="adm-btn primary" disabled={!dirty || saving} onClick={save}>{saving ? 'Saving…' : dirty ? 'Save changes' : 'Saved'}</button>
+                {settingKey === 'appearance' && <button className="adm-btn ghost" onClick={() => { sessionStorage.removeItem('ieee_its_intro_seen'); window.open('/', '_blank') }}>Replay intro <Icon name="external" size={15} /></button>}
+                <button className={`adm-btn${showPreview ? ' ghost' : ''}`} onClick={() => setShowPreview(v => !v)}><Icon name={showPreview ? 'eyeOff' : 'eye'} size={16} /> {showPreview ? 'Hide preview' : 'Preview'}</button>
+                {dirty && <button className="adm-btn ghost" onClick={() => setValue(JSON.parse(initial))}><Icon name="reset" size={16} /> Discard</button>}
+                <button className="adm-btn primary" disabled={!dirty || saving} onClick={save}>{saving ? 'Saving…' : dirty ? 'Apply changes' : 'Saved'}</button>
             </PageTitle>
             {!value ? <Spinner /> : (
-                <div className="adm-panel">
-                    <FieldForm fields={form.fields} value={value} onChange={setValue} />
+                <div className={showPreview ? 'adm-with-preview' : ''}>
+                    <div className="adm-panel">
+                        <FieldForm fields={form.fields} value={value} onChange={setValue} />
+                    </div>
+                    {showPreview && <div className="adm-sticky-preview"><PreviewFrame path={PREVIEW[settingKey] || '/'} patch={patch} /></div>}
                 </div>
             )}
-            {dirty && <div className="adm-savebar"><span>You have unsaved changes</span><button className="adm-btn primary" disabled={saving} onClick={save}>Save changes</button></div>}
+            {dirty && <div className="adm-savebar"><span>Unsaved changes — check them in the preview, then apply.</span><button className="adm-btn primary" disabled={saving} onClick={save}>Apply changes</button></div>}
         </>
     )
 }

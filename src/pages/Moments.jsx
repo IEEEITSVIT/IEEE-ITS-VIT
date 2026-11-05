@@ -7,6 +7,7 @@ import Seo from '../components/Seo'
 import Img from '../components/Img'
 import Lightbox from '../components/Lightbox'
 import { Reveal } from '../components/Reveal'
+import Section from '../components/Section'
 
 /* Albums are ordered by their linked event's date (or their own album date). */
 export default function Moments() {
@@ -32,7 +33,7 @@ export default function Moments() {
         <>
             <Seo />
             <PageHeader page="moments" />
-            <section className="section" style={{ borderTop: 0, paddingTop: 0 }}>
+            <Section id="moments.list" className="section" style={{ borderTop: 0, paddingTop: 0 }}>
                 <div className="wrap tl">
                     {years.map(y => (
                         <div className="tl-year" key={y}>
@@ -58,7 +59,7 @@ export default function Moments() {
                     ))}
                     {!albums.length && <p className="empty">No albums yet</p>}
                 </div>
-            </section>
+            </Section>
             <AnimatePresence>{open && <Lightbox photos={open.photos} title={open.title} onClose={() => setOpen(null)} />}</AnimatePresence>
         </>
     )

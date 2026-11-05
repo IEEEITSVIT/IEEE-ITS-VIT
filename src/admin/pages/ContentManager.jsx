@@ -1,10 +1,24 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Reorder, useDragControls } from 'framer-motion'
 import { api } from '../../lib/api'
 import { useSite } from '../../context/SiteContext'
-import { CONTENT_TYPES } from '../../../shared/cms.js'
+import { CONTENT_TYPES, slugify } from '../../../shared/cms.js'
 import { FieldForm, thumb } from '../fields'
 import { Drawer, PageTitle, Badge, Empty, Spinner, useToast, useConfirm, useLoader, Switch } from '../ui'
+import { PreviewFrame, withItem } from '../Preview'
+import Icon from '../icons'
+
+/* Where each kind of content appears on the website (the preview opens there). */
+const PREVIEW_PATH = {
+    faculty: '/faculty', web_team: '/web-team', blogs: d => (d.title ? `/blogs/${d.slug || slugify(d.title)}` : '/blogs'),
+    magazines: '/blogs', vlogs: '/vlogs', faqs: '/faq', merch: '/merch',
+}
+/* The section of that page the preview scrolls to. */
+const PREVIEW_FOCUS = {
+    board: 'home.board', banners: 'home.banners', gallery: 'home.gallery', domains: 'home.domains', faculty: 'faculty.list',
+    web_team: 'webteam.list', faqs: 'faq.list', merch: 'merch.list', vlogs: 'vlogs.list', footer_links: 'footer', social_links: 'footer',
+}
+const previewPath = (type, data) => { const p = PREVIEW_PATH[type]; return typeof p === 'function' ? p(data) : p || '/' }
 
 const toLocalInput = v => (v ? String(v).replace(' ', 'T').slice(0, 16) : '')
 
@@ -31,7 +45,7 @@ function Row({ item, def, onEdit, onToggle, onDuplicate, onDelete }) {
     const image = def.image ? item[def.image] : null
     return (
         <Reorder.Item value={item} dragListener={false} dragControls={controls} className="adm-list-row" whileDrag={{ scale: 1.02, boxShadow: '0 12px 30px rgba(0,0,0,.15)' }}>
-            <button className="adm-drag" onPointerDown={e => controls.start(e)} aria-label="Drag to reorder">⋮⋮</button>
+            <button className="adm-drag" onPointerDown={e => controls.start(e)} aria-label="Drag to reorder"><Icon name="drag" size={18} /></button>
             {def.image && <div className="adm-thumb">{image ? <img src={thumb(image)} alt="" /> : <span>—</span>}</div>}
             <div className="adm-list-main" onClick={onEdit}>
                 <strong>{item[def.title] || <em>Untitled</em>}</strong>
@@ -41,8 +55,8 @@ function Row({ item, def, onEdit, onToggle, onDuplicate, onDelete }) {
             <Switch checked={item._status === 'published'} onChange={onToggle} label={item._status === 'published' ? 'Live' : 'Draft'} />
             <div className="adm-row">
                 <button className="adm-btn small" onClick={onEdit}>Edit</button>
-                <button className="adm-btn small ghost" onClick={onDuplicate} title="Duplicate">⧉</button>
-                <button className="adm-btn small ghost danger-text" onClick={onDelete} title="Delete">🗑</button>
+                <button className="adm-btn small ghost" onClick={onDuplicate} title="Duplicate" aria-label="Duplicate"><Icon name="copy" size={16} /></button>
+                <button className="adm-btn small ghost danger-text" onClick={onDelete} title="Delete" aria-label="Delete"><Icon name="trash" size={16} /></button>
             </div>
         </Reorder.Item>
     )
@@ -50,7 +64,7 @@ function Row({ item, def, onEdit, onToggle, onDuplicate, onDelete }) {
 
 export default function ContentManager({ type }) {
     const def = CONTENT_TYPES[type]
-    const { refresh } = useSite()
+    const { refresh, content: live } = useSite()
     const toast = useToast()
     const confirm = useConfirm()
     const { data, loading, error, reload, setData } = useLoader(() => api.get(`/admin/content/${type}`).then(r => r.items), [type])
@@ -113,13 +127,23 @@ export default function ContentManager({ type }) {
         } catch (e) { toast(e.message, 'error'); reload() }
     }
 
+    // The item being edited replaces (or joins) the live list in the preview — drafts included.
+    const patch = useMemo(() => {
+        if (!editing) return null
+        const item = { ...editing.data, id: editing.id ?? -1 }
+        return { content: { [type]: withItem(live[type], item) }, ...(type === 'popups' ? { popup: item } : {}) }
+    }, [editing, live, type])
+    const [path, setPath] = useState('/')
+    const editingTitle = editing?.data?.[def.title]
+    useEffect(() => { if (editing) setPath(previewPath(type, editing.data || {})) }, [type, !!editing, editingTitle]) // eslint-disable-line react-hooks/exhaustive-deps
+
     const filtered = q ? items.filter(i => JSON.stringify(i).toLowerCase().includes(q.toLowerCase())) : items
 
     return (
         <>
             <PageTitle title={def.label} subtitle={def.help}>
                 <input className="adm-input search" placeholder="Search…" value={q} onChange={e => setQ(e.target.value)} />
-                <button className="adm-btn primary" onClick={() => setEditing({ data: blank(def), status: 'published' })}>＋ Add {def.singular}</button>
+                <button className="adm-btn primary" onClick={() => setEditing({ data: blank(def), status: 'published' })}><Icon name="plus" size={16} /> Add {def.singular}</button>
             </PageTitle>
             {loading ? <Spinner /> : error ? <p className="adm-hint warn">{error}</p> : filtered.length === 0 ? (
                 <Empty>No {def.label.toLowerCase()} yet.</Empty>
@@ -132,9 +156,10 @@ export default function ContentManager({ type }) {
                     ))}
                 </Reorder.Group>
             )}
-            <p className="adm-hint">Drag ⋮⋮ to reorder — the website follows this order.</p>
+            <p className="adm-hint">Drag the handle to reorder — the website follows this order.</p>
 
             <Drawer open={!!editing} title={`${editing?.id ? 'Edit' : 'New'} ${def.singular}`} onClose={() => setEditing(null)}
+                preview={editing && <PreviewFrame path={path} patch={patch} focus={PREVIEW_FOCUS[type]} />}
                 footer={<>
                     <select className="adm-input" value={editing?.status || 'published'} onChange={e => setEditing(s => ({ ...s, status: e.target.value }))} style={{ maxWidth: 160 }}>
                         <option value="published">Published</option><option value="draft">Draft</option>

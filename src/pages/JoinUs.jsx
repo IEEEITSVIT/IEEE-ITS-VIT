@@ -5,6 +5,7 @@ import { api } from '../lib/api'
 import PageHeader from '../components/PageHeader'
 import Seo from '../components/Seo'
 import { Reveal } from '../components/Reveal'
+import Section from '../components/Section'
 
 export default function JoinUs() {
     const { user, logout, updateProfile } = useAuth()
@@ -45,7 +46,7 @@ export default function JoinUs() {
         <>
             <Seo title="Your Profile" noindex />
             <PageHeader title={`Hi, ${user.name.split(' ')[0]}`} overline={user.memberType} subtitle={user.email} />
-            <section className="section" style={{ borderTop: 0 }}>
+            <Section id="join.main" className="section" style={{ borderTop: 0 }}>
                 <div className="wrap split">
                     <Reveal as="form" className="form boxed" onSubmit={save}>
                         <span className="label">Profile</span>
@@ -71,7 +72,7 @@ export default function JoinUs() {
                         <Link to="/merch?tab=orders" className="link-arrow" style={{ alignSelf: 'flex-start', marginTop: 8 }}>My bookings →</Link>
                     </Reveal>
                 </div>
-            </section>
+            </Section>
         </>
     )
 }

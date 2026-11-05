@@ -1,10 +1,12 @@
-import { useEffect, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import picNames from '../data/carouselImages.json'
 import { useSite } from '../context/SiteContext'
 import SmartLink from '../components/SmartLink'
 import Seo from '../components/Seo'
+import Section from '../components/Section'
+import { homeOrder } from '../../shared/layout.js'
 import Img from '../components/Img'
 import Lightbox from '../components/Lightbox'
 import { RevealText, Reveal } from '../components/Reveal'
@@ -88,11 +90,125 @@ export default function Home() {
     const feature = upcoming[0]
     const words = home.tickerWords?.length ? home.tickerWords : domains.map(d => d.title)
 
+    const blocks = {
+        'home.upcoming': () => show.upcoming !== false && feature && (
+            <Section id="home.upcoming" className="section">
+                <div className="wrap">
+                    <SectionHead overline={home.upcomingOverline} title={home.upcomingTitle} text={home.upcomingSubtitle} />
+                    <Reveal className="feature">
+                        <Img src={feature.poster_url} alt={feature.title} ratio="16x9" width={1200} />
+                        <div className="feature-body">
+                            {feature.tag && <span className="label">{feature.tag}</span>}
+                            <h3 className="display h-md">{feature.title}</h3>
+                            <div className="meta-row">
+                                <span><b>{formatEventDate(feature)}</b></span>
+                                {feature.time_text && <span>{feature.time_text}</span>}
+                                {feature.venue && <span>{feature.venue}</span>}
+                            </div>
+                            <p className="muted" style={{ margin: 0 }}>{feature.summary}</p>
+                            <Countdown date={feature.start_date} />
+                            <div className="hero-cta" style={{ marginTop: 0 }}>
+                                <Link to={`/events/${feature.slug}`} className="btn solid">Event details <span className="arr">→</span></Link>
+                                {feature.registration_url && <SmartLink to={feature.registration_url} className="btn">{feature.cta_label}</SmartLink>}
+                            </div>
+                        </div>
+                    </Reveal>
+                    {upcoming.length > 1 && (
+                        <div className="grid g-3" style={{ marginTop: 28 }}>
+                            {upcoming.slice(1, 4).map((e, i) => <EventCard key={e.id} event={e} delay={i * 0.08} />)}
+                        </div>
+                    )}
+                </div>
+            </Section>
+        ),
+    'home.banners': () => show.banners !== false && list('banners').length > 0 && (
+            <Section id="home.banners" className="section tight"><div className="wrap"><Spotlight banners={list('banners')} /></div></Section>
+        ),
+    'home.about': () => show.about !== false && (
+            <Section id="home.about" className="section">
+                <div className="wrap split">
+                    <div>
+                        <span className="label">{home.aboutOverline}</span>
+                        <RevealText as="h2" className="display h-lg" text={home.aboutTitle} />
+                    </div>
+                    <Reveal>
+                        {(home.aboutParagraphs || []).map((p, i) => <p key={i}>{p}</p>)}
+                        {show.sticky && home.stickyText && <p style={{ color: 'var(--text)', fontSize: '1.2rem' }}>{home.stickyText}</p>}
+                    </Reveal>
+                </div>
+            </Section>
+        ),
+    'home.domains': () => show.domains !== false && domains.length > 0 && (
+            <Section id="home.domains" className="section">
+                <div className="wrap">
+                    <SectionHead overline={home.domainsOverline} title={home.domainsTitle} text={home.domainsSubtitle} />
+                    <div className="domains">
+                        {domains.map((d, i) => (
+                            <Reveal key={d.id} className="domain" delay={(i % 3) * 0.06}>
+                                <div className="num"><span>{String(i + 1).padStart(2, '0')}</span><span>→</span></div>
+                                <h3 className="display h-sm">{d.title}</h3>
+                                <p>{String(d.desc || '').replace(/^[•\s]+/, '').replace(/"$/, '')}</p>
+                            </Reveal>
+                        ))}
+                    </div>
+                </div>
+            </Section>
+        ),
+    'home.events': () => show.events !== false && recent.length > 0 && (
+            <Section id="home.events" className="section">
+                <div className="wrap">
+                    <SectionHead overline={home.eventsOverline} title={home.eventsTitle} link="/timeline" linkLabel={home.eventsCta} />
+                    <div className="grid g-3">{recent.map((e, i) => <EventCard key={e.id} event={e} delay={i * 0.08} />)}</div>
+                </div>
+            </Section>
+        ),
+    'home.gallery': () => show.gallery !== false && gallery.length > 0 && (
+            <Section id="home.gallery" className="section">
+                <div className="wrap">
+                    <SectionHead overline={home.galleryOverline} title={home.galleryTitle} text={home.gallerySubtitle} link="/moments" linkLabel={home.galleryCta} />
+                    <div className="gallery-grid">
+                        {gallery.map((g, i) => (
+                            <Reveal key={g.image} delay={(i % 4) * 0.05}>
+                                <button onClick={() => setLightbox(i)} aria-label={g.caption || 'Open photo'}>
+                                    <Img src={g.image} alt={g.caption || ''} ratio="4x3" width={600} />
+                                </button>
+                            </Reveal>
+                        ))}
+                    </div>
+                </div>
+            </Section>
+        ),
+    'home.board': () => show.board !== false && board.length > 0 && (
+            <Section id="home.board" className="section">
+                <div className="wrap">
+                    <SectionHead overline={home.boardOverline} title={home.boardTitle} text={home.boardSubtitle} link="/web-team" linkLabel={home.boardCta} />
+                    <MovingPeopleGrid people={board} />
+                </div>
+            </Section>
+        ),
+    'home.cta': () => show.chill !== false && (
+            <Section id="home.cta" className="section tight">
+                <div className="wrap">
+                    <Reveal className="band">
+                        <div>
+                            <h2 className="display h-lg">{home.chillTitle}</h2>
+                            <p>{home.chillText}</p>
+                        </div>
+                        <div className="hero-cta" style={{ marginTop: 0 }}>
+                            {home.chillCta?.url && <SmartLink to={home.chillCta.url} className="btn light">{label(home.chillCta.label)} <span className="arr">→</span></SmartLink>}
+                            {home.joinCta?.url && <SmartLink to={home.joinCta.url} className="btn">{home.joinCta.label}</SmartLink>}
+                        </div>
+                    </Reveal>
+                </div>
+            </Section>
+        ),
+    }
+
     return (
         <>
             <Seo />
             {/* HERO */}
-            <section className="hero">
+            <Section id="home.hero" className="hero">
                 <GridLines />
                 <div className="wrap">
                     <motion.span className="label" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }}>{home.heroBadge}</motion.span>
@@ -123,134 +239,9 @@ export default function Home() {
                         <div className="ticker-track">{[...words, ...words].map((w, i) => <span key={i}>{w}</span>)}</div>
                     </div>
                 )}
-            </section>
+            </Section>
 
-            {/* UPCOMING */}
-            {show.upcoming !== false && feature && (
-                <section className="section">
-                    <div className="wrap">
-                        <SectionHead overline={home.upcomingOverline} title={home.upcomingTitle} text={home.upcomingSubtitle} />
-                        <Reveal className="feature">
-                            <Img src={feature.poster_url} alt={feature.title} ratio="16x9" width={1200} />
-                            <div className="feature-body">
-                                {feature.tag && <span className="label">{feature.tag}</span>}
-                                <h3 className="display h-md">{feature.title}</h3>
-                                <div className="meta-row">
-                                    <span><b>{formatEventDate(feature)}</b></span>
-                                    {feature.time_text && <span>{feature.time_text}</span>}
-                                    {feature.venue && <span>{feature.venue}</span>}
-                                </div>
-                                <p className="muted" style={{ margin: 0 }}>{feature.summary}</p>
-                                <Countdown date={feature.start_date} />
-                                <div className="hero-cta" style={{ marginTop: 0 }}>
-                                    <Link to={`/events/${feature.slug}`} className="btn solid">Event details <span className="arr">→</span></Link>
-                                    {feature.registration_url && <SmartLink to={feature.registration_url} className="btn">{feature.cta_label}</SmartLink>}
-                                </div>
-                            </div>
-                        </Reveal>
-                        {upcoming.length > 1 && (
-                            <div className="grid g-3" style={{ marginTop: 28 }}>
-                                {upcoming.slice(1, 4).map((e, i) => <EventCard key={e.id} event={e} delay={i * 0.08} />)}
-                            </div>
-                        )}
-                    </div>
-                </section>
-            )}
-
-            {/* SPOTLIGHT BANNERS */}
-            {show.banners !== false && list('banners').length > 0 && (
-                <section className="section tight"><div className="wrap"><Spotlight banners={list('banners')} /></div></section>
-            )}
-
-            {/* ABOUT */}
-            {show.about !== false && (
-                <section className="section">
-                    <div className="wrap split">
-                        <div>
-                            <span className="label">{home.aboutOverline}</span>
-                            <RevealText as="h2" className="display h-lg" text={home.aboutTitle} />
-                        </div>
-                        <Reveal>
-                            {(home.aboutParagraphs || []).map((p, i) => <p key={i}>{p}</p>)}
-                            {show.sticky && home.stickyText && <p style={{ color: 'var(--text)', fontSize: '1.2rem' }}>{home.stickyText}</p>}
-                        </Reveal>
-                    </div>
-                </section>
-            )}
-
-            {/* DOMAINS */}
-            {show.domains !== false && domains.length > 0 && (
-                <section className="section">
-                    <div className="wrap">
-                        <SectionHead overline={home.domainsOverline} title={home.domainsTitle} text={home.domainsSubtitle} />
-                        <div className="domains">
-                            {domains.map((d, i) => (
-                                <Reveal key={d.id} className="domain" delay={(i % 3) * 0.06}>
-                                    <div className="num"><span>{String(i + 1).padStart(2, '0')}</span><span>→</span></div>
-                                    <h3 className="display h-sm">{d.title}</h3>
-                                    <p>{String(d.desc || '').replace(/^[•\s]+/, '').replace(/"$/, '')}</p>
-                                </Reveal>
-                            ))}
-                        </div>
-                    </div>
-                </section>
-            )}
-
-            {/* RECENT EVENTS */}
-            {show.events !== false && recent.length > 0 && (
-                <section className="section">
-                    <div className="wrap">
-                        <SectionHead overline={home.eventsOverline} title={home.eventsTitle} link="/timeline" linkLabel={home.eventsCta} />
-                        <div className="grid g-3">{recent.map((e, i) => <EventCard key={e.id} event={e} delay={i * 0.08} />)}</div>
-                    </div>
-                </section>
-            )}
-
-            {/* GALLERY */}
-            {show.gallery !== false && gallery.length > 0 && (
-                <section className="section">
-                    <div className="wrap">
-                        <SectionHead overline={home.galleryOverline} title={home.galleryTitle} text={home.gallerySubtitle} link="/moments" linkLabel={home.galleryCta} />
-                        <div className="gallery-grid">
-                            {gallery.map((g, i) => (
-                                <Reveal key={g.image} delay={(i % 4) * 0.05}>
-                                    <button onClick={() => setLightbox(i)} aria-label={g.caption || 'Open photo'}>
-                                        <Img src={g.image} alt={g.caption || ''} ratio="4x3" width={600} />
-                                    </button>
-                                </Reveal>
-                            ))}
-                        </div>
-                    </div>
-                </section>
-            )}
-
-            {/* BOARD */}
-            {show.board !== false && board.length > 0 && (
-                <section className="section">
-                    <div className="wrap">
-                        <SectionHead overline={home.boardOverline} title={home.boardTitle} text={home.boardSubtitle} link="/web-team" linkLabel={home.boardCta} />
-                        <MovingPeopleGrid people={board} />
-                    </div>
-                </section>
-            )}
-
-            {/* CTA BAND */}
-            {show.chill !== false && (
-                <section className="section tight">
-                    <div className="wrap">
-                        <Reveal className="band">
-                            <div>
-                                <h2 className="display h-lg">{home.chillTitle}</h2>
-                                <p>{home.chillText}</p>
-                            </div>
-                            <div className="hero-cta" style={{ marginTop: 0 }}>
-                                {home.chillCta?.url && <SmartLink to={home.chillCta.url} className="btn light">{label(home.chillCta.label)} <span className="arr">→</span></SmartLink>}
-                                {home.joinCta?.url && <SmartLink to={home.joinCta.url} className="btn">{home.joinCta.label}</SmartLink>}
-                            </div>
-                        </Reveal>
-                    </div>
-                </section>
-            )}
+            {homeOrder(settings.layout).map(id => <Fragment key={id}>{blocks[id]?.()}</Fragment>)}
 
             <AnimatePresence>
                 {lightbox !== null && <Lightbox photos={gallery.map(g => g.image)} title={home.galleryTitle} start={lightbox} onClose={() => setLightbox(null)} />}

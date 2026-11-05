@@ -101,7 +101,7 @@ export async function notifyOrder(order) {
         tasks.push(sendMail({
             kind: 'order-confirmation', to: [order.email],
             subject: `Your IEEE ITS booking #${order.id} is confirmed`,
-            html: layout('Booking Confirmed 🎉', `Hi ${esc(order.name)},<br/>Thanks for booking IEEE ITS merchandise. Here are your booking details:`, rows,
+            html: layout('Booking confirmed', `Hi ${esc(order.name)},<br/>Thanks for booking IEEE ITS merchandise. Here are your booking details:`, rows,
                 'No payment is required now — the team will contact you about collection.'),
         }))
     }
@@ -125,7 +125,7 @@ export async function notifyQuery(q) {
     if (n.sendUserConfirmation && q.kind !== 'suggestion') {
         tasks.push(sendMail({
             kind: `${q.kind}-confirmation`, to: [q.email], subject: 'We received your message – IEEE ITS VIT',
-            html: layout('Message received ✉️', `Hi ${esc(q.name || 'there')},<br/>Thanks for reaching out — the IEEE ITS team will get back to you soon.`, rows, ''),
+            html: layout('Message received', `Hi ${esc(q.name || 'there')},<br/>Thanks for reaching out — the IEEE ITS team will get back to you soon.`, rows, ''),
         }))
     }
     return Promise.all(tasks)

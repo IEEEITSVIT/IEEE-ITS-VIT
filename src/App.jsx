@@ -1,7 +1,8 @@
 import { Routes, Route, useLocation } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import { lazy, Suspense, useEffect } from 'react'
-import { useSite } from './context/SiteContext'
+import { useSite, PREVIEW } from './context/SiteContext'
+import PreviewBridge from './components/PreviewBridge'
 import Navbar from './components/Navbar'
 import Footer from './components/Footer'
 import FooterContact from './components/FooterContact'
@@ -79,11 +80,12 @@ function App() {
   return (
     <>
       <ThemeApplier />
-      <Preloader />
+      {!PREVIEW && <Preloader />}
       {!ready && error && <BootError error={error} retry={refresh} />}
       {ready && (
         <>
           <ScrollToTop />
+          {PREVIEW && <PreviewBridge />}
           <ScrollProgress />
           <AnnouncementBar />
           <Navbar />

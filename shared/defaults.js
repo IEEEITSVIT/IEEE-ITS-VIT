@@ -12,7 +12,7 @@
 
 const IC = 'https://ic-etite-28final.vercel.app'
 
-export const PUBLIC_SETTING_KEYS = ['site', 'home', 'pages', 'seo', 'appearance', 'merch', 'blogs', 'vlogs', 'webteam', 'games']
+export const PUBLIC_SETTING_KEYS = ['site', 'home', 'pages', 'seo', 'appearance', 'merch', 'blogs', 'vlogs', 'webteam', 'games', 'layout', 'image_styles']
 
 export const DEFAULT_SETTINGS = {
     site: {
@@ -162,6 +162,9 @@ export const DEFAULT_SETTINGS = {
     games: {
         tip: "Shannon's information theory laid the groundwork for all modern digital communication — from WiFi to streaming!",
     },
+    // Admin → Design (per-section styles, home order) and per-image crop — see shared/layout.js
+    layout: { sections: {}, order: { home: [] } },
+    image_styles: {},
 }
 
 /* Admin-only settings (never sent by the public bootstrap API) */
@@ -207,15 +210,15 @@ export const DEFAULT_CONTENT = {
         member('Mithun M S', 'Management Head', 'M', '/team/mithun-m-s.jpg', 'https://www.instagram.com/mith.un._?igsh=MWVocXRlcTViMnNudw%3D%3D&utm_source=qr', 'https://www.linkedin.com/in/mithun-ms-a6ba19376?utm_source=share_via&utm_content=profile&utm_medium=member_ios'),
     ],
     domains: [
-        { icon: '📡', title: 'Technical', desc: '• Developing scalable software architectures, advanced competitive coding, and full-stack systems with core CSE principles.' },
-        { icon: '👩🏻‍💻', title: 'Project', desc: '• Strengthening project delivery through strategic budgeting, resource optimization, and sustainable sponsorship management.' },
-        { icon: '🔐', title: 'Editorial', desc: '• Curating technical excellence through high-impact publications, AI research reviews, and strategic content strategy.' },
-        { icon: '🧠', title: 'Design & Creative', desc: '• Blending aesthetics with technology to craft immersive UI/UX, brand identities, and dynamic visual media.' },
-        { icon: '📊', title: 'Research and Development', desc: '• Pioneering innovation in Artificial Intelligence, Machine Learning, and Neural Networks to solve complex computational problems.' },
-        { icon: '🌐', title: 'Publicity', desc: '• Amplifying our reach through strategic digital outreach, public relations, and high-impact community building.' },
-        { icon: '⚡', title: 'Events & Management', desc: '• Executing world-class technical symposiums, hackathons, and workshops that drive innovation.' },
-        { icon: '🤝', title: 'Out-Reach', desc: '• Establishing powerful industrial alliances and academic partnerships to foster global collaboration.' },
-        { icon: '💰', title: 'Finance', desc: '• Optimizing resource allocation through strategic financial planning, budgeting, and sponsorship management.' },
+        { title: 'Technical', desc: '• Developing scalable software architectures, advanced competitive coding, and full-stack systems with core CSE principles.' },
+        { title: 'Project', desc: '• Strengthening project delivery through strategic budgeting, resource optimization, and sustainable sponsorship management.' },
+        { title: 'Editorial', desc: '• Curating technical excellence through high-impact publications, AI research reviews, and strategic content strategy.' },
+        { title: 'Design & Creative', desc: '• Blending aesthetics with technology to craft immersive UI/UX, brand identities, and dynamic visual media.' },
+        { title: 'Research and Development', desc: '• Pioneering innovation in Artificial Intelligence, Machine Learning, and Neural Networks to solve complex computational problems.' },
+        { title: 'Publicity', desc: '• Amplifying our reach through strategic digital outreach, public relations, and high-impact community building.' },
+        { title: 'Events & Management', desc: '• Executing world-class technical symposiums, hackathons, and workshops that drive innovation.' },
+        { title: 'Out-Reach', desc: '• Establishing powerful industrial alliances and academic partnerships to foster global collaboration.' },
+        { title: 'Finance', desc: '• Optimizing resource allocation through strategic financial planning, budgeting, and sponsorship management.' },
     ],
     faculty: [
         {
@@ -268,8 +271,8 @@ export const DEFAULT_CONTENT = {
         },
     ],
     magazines: [
-        { title: 'The Information Theory Review', edition: 'Annual Edition 2025', desc: 'An in-depth look at AI-driven information recovery.', icon: '📕', url: '' },
-        { title: 'ITS Tech Pulse', edition: 'Q4 2025 Release', desc: 'Explaining Entropy in the context of modern big data.', icon: '📘', url: '' },
+        { title: 'The Information Theory Review', edition: 'Annual Edition 2025', desc: 'An in-depth look at AI-driven information recovery.', url: '' },
+        { title: 'ITS Tech Pulse', edition: 'Q4 2025 Release', desc: 'Explaining Entropy in the context of modern big data.', url: '' },
     ],
     vlogs: [
         { title: 'IEEE ITS VIT — Chapter Introduction', desc: 'An overview of who we are and what we do.', url: 'https://youtu.be/JA3t27eBL3M?si=l8TaPSnTcHksrznC', thumbnail: '' },

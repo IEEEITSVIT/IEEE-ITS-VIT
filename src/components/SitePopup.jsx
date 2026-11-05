@@ -29,23 +29,25 @@ const matchesPage = (pages, pathname) => {
 
 /** Admin-controlled spotlight popups (replaces the hardcoded home-page spotlight). */
 export default function SitePopup() {
-    const { list, loaded } = useSite()
+    const { list, loaded, preview, previewPopup } = useSite()
     const { pathname } = useLocation()
     const [active, setActive] = useState(null)
 
+    // In the admin preview only the popup being edited is shown, straight away and without "seen" tracking.
     const candidate = useMemo(
-        () => list('popups').find(p => matchesPage(p.pages, pathname) && shouldShow(p)),
+        () => (preview ? previewPopup : list('popups').find(p => matchesPage(p.pages, pathname) && shouldShow(p))),
         // eslint-disable-next-line react-hooks/exhaustive-deps
-        [list, pathname, loaded]
+        [list, pathname, loaded, preview, previewPopup]
     )
 
     useEffect(() => {
-        if (!candidate || pathname.startsWith('/admin')) return
+        if (!candidate || pathname.startsWith('/admin')) { if (preview) setActive(null); return }
+        if (preview) { const t = setTimeout(() => setActive(candidate), 60); return () => clearTimeout(t) }
         const introPending = !sessionStorage.getItem('ieee_its_intro_seen')
         const delay = Math.max(0, Number(candidate.delaySeconds) || 0) * 1000 + (introPending ? 3200 : 600)
         const t = setTimeout(() => { setActive(candidate); markShown(candidate) }, delay)
         return () => clearTimeout(t)
-    }, [candidate, pathname])
+    }, [candidate, pathname, preview])
 
     useEffect(() => {
         document.body.style.overflow = active ? 'hidden' : ''

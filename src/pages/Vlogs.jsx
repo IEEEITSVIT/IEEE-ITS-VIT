@@ -6,6 +6,7 @@ import Seo from '../components/Seo'
 import Img from '../components/Img'
 import PageHeader from '../components/PageHeader'
 import { Reveal } from '../components/Reveal'
+import Section from '../components/Section'
 
 const ytId = url => String(url || '').match(/(?:youtu\.be\/|v=|embed\/|shorts\/)([\w-]{11})/)?.[1]
 
@@ -23,7 +24,7 @@ export default function Vlogs() {
         <>
             <Seo />
             <PageHeader page="vlogs" />
-            <section className="section" style={{ borderTop: 0 }}>
+            <Section id="vlogs.list" className="section" style={{ borderTop: 0 }}>
                 <div className="wrap">
                     <div className="grid g-3">
                         {list('vlogs').map((v, i) => {
@@ -41,7 +42,7 @@ export default function Vlogs() {
                         })}
                     </div>
                 </div>
-            </section>
+            </Section>
             <section className="section tight">
                 <div className="wrap">
                     <div className="band">

@@ -3,6 +3,7 @@ import ContactForm from '../components/ContactForm'
 import PageHeader from '../components/PageHeader'
 import Seo from '../components/Seo'
 import { Reveal } from '../components/Reveal'
+import Section from '../components/Section'
 
 /* Public query form — stored in D1 and emailed to the recipients set in Admin → Email & SMTP. */
 export default function Contact() {
@@ -12,7 +13,7 @@ export default function Contact() {
         <>
             <Seo />
             <PageHeader page="contact" />
-            <section className="section" style={{ borderTop: 0 }}>
+            <Section id="contact.main" className="section" style={{ borderTop: 0 }}>
                 <div className="wrap split wide-left">
                     <Reveal className="boxed"><ContactForm /></Reveal>
                     <Reveal delay={0.1} className="facts">
@@ -21,7 +22,7 @@ export default function Contact() {
                         {site.address && <div><span>Address</span><b>{site.address}</b></div>}
                     </Reveal>
                 </div>
-            </section>
+            </Section>
         </>
     )
 }

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useSite } from '../context/SiteContext'
 import PageHeader from '../components/PageHeader'
 import Seo from '../components/Seo'
+import Section from '../components/Section'
 
 /* ─────────────────────────────────────────────
    GAME 1: Binary Decoder
@@ -27,11 +28,11 @@ function BinaryGame() {
         if (input.trim() === correct) {
             setScore(s => s + 10 + streak * 2)
             setStreak(s => s + 1)
-            setFeedback('✅ Correct! +' + (10 + streak * 2) + ' pts')
+            setFeedback('Correct! +' + (10 + streak * 2) + ' pts')
             setTimeout(newRound, 900)
         } else {
             setStreak(0)
-            setFeedback(`❌ Wrong! Answer was ${correct}`)
+            setFeedback(`Wrong! Answer was ${correct}`)
         }
     }
 
@@ -54,8 +55,8 @@ function BinaryGame() {
                 />
                 <button className="game-btn" onClick={check}>Submit</button>
             </div>
-            {streak > 1 && <div className="streak-badge">🔥 {streak} streak!</div>}
-            {feedback && <div className={`game-feedback ${feedback.startsWith('✅') ? 'ok' : 'err'}`}>{feedback}</div>}
+            {streak > 1 && <div className="streak-badge">{streak} in a row</div>}
+            {feedback && <div className={`game-feedback ${feedback.startsWith('Correct') ? 'ok' : 'err'}`}>{feedback}</div>}
         </div>
     )
 }
@@ -91,9 +92,9 @@ function LogicGame() {
         if (!q) return
         if (val === q.ans) {
             setScore(s => s + 10)
-            setFeedback('✅ Correct!')
+            setFeedback('Correct!')
         } else {
-            setFeedback(`❌ Wrong! ${q.gate.name}(${q.a},${q.b}) = ${q.ans}`)
+            setFeedback(`Wrong! ${q.gate.name}(${q.a},${q.b}) = ${q.ans}`)
         }
         setTimeout(newQ, 1000)
     }
@@ -116,7 +117,7 @@ function LogicGame() {
                 <button className="game-btn" onClick={() => answer(0)}>0</button>
                 <button className="game-btn" onClick={() => answer(1)}>1</button>
             </div>
-            {feedback && <div className={`game-feedback ${feedback.startsWith('✅') ? 'ok' : 'err'}`}>{feedback}</div>}
+            {feedback && <div className={`game-feedback ${feedback.startsWith('Correct') ? 'ok' : 'err'}`}>{feedback}</div>}
         </div>
     )
 }
@@ -154,10 +155,10 @@ function MorseGame() {
         if (!q) return
         if (input.trim().toUpperCase() === q.letter) {
             setScore(s => s + 10)
-            setFeedback('✅ Correct!')
+            setFeedback('Correct!')
             setTimeout(newQ, 800)
         } else {
-            setFeedback(`❌ Wrong! It was "${q.letter}"`)
+            setFeedback(`Wrong! It was "${q.letter}"`)
         }
     }
 
@@ -181,7 +182,7 @@ function MorseGame() {
                 />
                 <button className="game-btn" onClick={check}>Submit</button>
             </div>
-            {feedback && <div className={`game-feedback ${feedback.startsWith('✅') ? 'ok' : 'err'}`}>{feedback}</div>}
+            {feedback && <div className={`game-feedback ${feedback.startsWith('Correct') ? 'ok' : 'err'}`}>{feedback}</div>}
         </div>
     )
 }
@@ -212,9 +213,9 @@ function EntropyQuiz() {
         if (feedback) return
         if (i === cur.ans) {
             setScore(s => s + 15)
-            setFeedback('✅ Correct!')
+            setFeedback('Correct!')
         } else {
-            setFeedback(`❌ Wrong! Answer: "${cur.choices[cur.ans]}"`)
+            setFeedback(`Wrong! Answer: "${cur.choices[cur.ans]}"`)
         }
         setTimeout(() => {
             setFeedback('')
@@ -233,8 +234,7 @@ function EntropyQuiz() {
             </div>
             {done ? (
                 <div style={{ textAlign: 'center', padding: '20px' }}>
-                    <div style={{ fontSize: '3rem' }}>🎉</div>
-                    <h4 style={{ marginTop: '12px' }}>Quiz Complete!</h4>
+                                        <h4 style={{ marginTop: '12px' }}>Quiz Complete!</h4>
                     <p style={{ color: 'var(--primary-light)', fontSize: '1.2rem', margin: '8px 0 20px' }}>
                         {score} / {ENTROPY_QS.length * 15} pts
                     </p>
@@ -249,7 +249,7 @@ function EntropyQuiz() {
                             <button key={i} className="entropy-choice-btn" onClick={() => pick(i)}>{c}</button>
                         ))}
                     </div>
-                    {feedback && <div className={`game-feedback ${feedback.startsWith('✅') ? 'ok' : 'err'}`}>{feedback}</div>}
+                    {feedback && <div className={`game-feedback ${feedback.startsWith('Correct') ? 'ok' : 'err'}`}>{feedback}</div>}
                 </>
             )}
         </div>
@@ -260,10 +260,10 @@ function EntropyQuiz() {
    MAIN GAMES PAGE
 ───────────────────────────────────────────────*/
 const GAME_LIST = [
-    { id: 'binary', label: '⚡ Binary Decoder', component: BinaryGame },
-    { id: 'logic', label: '🔐 Logic Gate Quiz', component: LogicGame },
-    { id: 'morse', label: '📡 Morse Decoder', component: MorseGame },
-    { id: 'entropy', label: '🧠 Entropy Quiz', component: EntropyQuiz },
+    { id: 'binary', label: 'Binary Decoder', component: BinaryGame },
+    { id: 'logic', label: 'Logic Gate Quiz', component: LogicGame },
+    { id: 'morse', label: 'Morse Decoder', component: MorseGame },
+    { id: 'entropy', label: 'Entropy Quiz', component: EntropyQuiz },
 ]
 
 export default function Games() {
@@ -275,7 +275,7 @@ export default function Games() {
         <>
             <Seo />
             <PageHeader page="games" />
-            <section className="section" style={{ borderTop: 0 }}>
+            <Section id="games.main" className="section" style={{ borderTop: 0 }}>
                 <div className="wrap">
                     <div className="game-tabs">
                         {GAME_LIST.map(g => (
@@ -285,7 +285,7 @@ export default function Games() {
                     <div className="game-stage"><ActiveGame key={active} /></div>
                     {settings.games?.tip && <p className="game-tip"><span className="label">Did you know</span><br />{settings.games.tip}</p>}
                 </div>
-            </section>
+            </Section>
         </>
     )
 }

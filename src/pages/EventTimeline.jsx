@@ -8,6 +8,7 @@ import { Reveal } from '../components/Reveal'
 import { formatEventDate } from '../../shared/cms.js'
 import { label } from '../lib/safe'
 import { useEventImage } from '../components/Cards'
+import Section from '../components/Section'
 
 /* Events are grouped by year and ordered by date. Upcoming / Live / Past status is computed
    from today's date, so changing an event's date in the admin moves it automatically. */
@@ -22,7 +23,7 @@ export default function EventTimeline() {
         <>
             <Seo />
             <PageHeader page="timeline" />
-            <section className="section" style={{ borderTop: 0, paddingTop: 0 }}>
+            <Section id="timeline.list" className="section" style={{ borderTop: 0, paddingTop: 0 }}>
                 <div className="wrap tl">
                     {years.map(y => (
                         <div className="tl-year" key={y}>
@@ -58,7 +59,7 @@ export default function EventTimeline() {
                     ))}
                     {!timeline.length && <p className="empty">No events yet</p>}
                 </div>
-            </section>
+            </Section>
         </>
     )
 }

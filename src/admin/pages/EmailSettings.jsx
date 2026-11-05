@@ -53,7 +53,7 @@ export default function EmailSettings() {
             <PageTitle title="Email & SMTP" subtitle="Where order and query notifications go, and how they are sent." />
             <div className="adm-grid-2 top">
                 <section className="adm-panel">
-                    <h3>📬 Notification recipients</h3>
+                    <h3>Notification recipients</h3>
                     <label className="adm-field"><span>New orders → send to</span>
                         <input className="adm-input" value={notif.orderRecipients} onChange={e => setNotif(n => ({ ...n, orderRecipients: e.target.value }))} placeholder="treasurer@example.com, chair@example.com" />
                     </label>
@@ -72,7 +72,7 @@ export default function EmailSettings() {
                 </section>
 
                 <section className="adm-panel">
-                    <h3>✉️ SMTP server</h3>
+                    <h3>SMTP server</h3>
                     <div className="adm-seg">
                         {Object.keys(PRESETS).map(p => (
                             <button key={p} className={preset === p ? 'on' : ''} onClick={() => p !== 'custom' && setSmtp(s => ({ ...s, ...PRESETS[p], note: undefined }))}>{p === 'gmail' ? 'Gmail' : p === 'outlook' ? 'Outlook' : 'Custom'}</button>
@@ -102,7 +102,7 @@ export default function EmailSettings() {
             </div>
 
             <section className="adm-panel">
-                <div className="adm-row between"><h3>📜 Email log</h3><button className="adm-btn small ghost" onClick={logs.reload}>Refresh</button></div>
+                <div className="adm-row between"><h3>Email log</h3><button className="adm-btn small ghost" onClick={logs.reload}>Refresh</button></div>
                 {logs.loading ? <Spinner /> : (
                     <div className="adm-table-wrap">
                         <table className="adm-table compact">

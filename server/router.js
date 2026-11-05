@@ -19,6 +19,7 @@ import { ensureReady } from './seed.js'
 import { notifyOrder, notifyQuery, notifySubscriber, sendMail, smtpConfig, sendPasswordResetCode } from './mailer.js'
 import { uploadAuth, deleteFile, imagekitConfigured } from './imagekit.js'
 import { DEFAULT_SETTINGS, DEFAULT_PRIVATE_SETTINGS, PUBLIC_SETTING_KEYS } from '../shared/defaults.js'
+import { cleanLayout, cleanImageStyle } from '../shared/layout.js'
 import { CONTENT_TYPES, EVENT_FIELDS, MOMENT_FIELDS, SETTINGS_FORMS, PRIVATE_SETTINGS, slugify, eventStatus, getPath, setPath } from '../shared/cms.js'
 
 /* ───────────── helpers ───────────── */
@@ -42,8 +43,15 @@ const cleanHtml = html => String(html || '')
     .replace(/\son\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '')
     .replace(/(href|src)\s*=\s*(["']?)\s*(javascript|vbscript|data):[^"'\s>]*/gi, '$1=$2#')
 
+/** The site uses no emoji: pictographs, flags and their joiners are removed from text on save. */
+const EMOJI = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{E0020}-\u{E007F}]|\u{FE0F}|\u{200D}|\u{20E3}/gu
+export const stripEmoji = v => (typeof v === 'string' ? v.replace(EMOJI, '').replace(/[ \t]{2,}/g, ' ').replace(/^[ \t]+|[ \t]+$/gm, '') : v)
+
 /** Coerce a value according to its CMS field definition. */
 function cleanField(field, value) {
+    if (['text', 'textarea', 'html', 'strings', 'rows', undefined].includes(field.type)) value = Array.isArray(value)
+        ? value.map(v => (v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, stripEmoji(x)])) : stripEmoji(v)))
+        : stripEmoji(value)
     switch (field.type) {
         case 'url': return safeUrl(value)
         case 'image': return safeUrl(value)
@@ -127,7 +135,7 @@ async function imageUsage(url) {
         db.all('SELECT type, data FROM content WHERE instr(data, ?) > 0', [url]),
         db.all('SELECT title FROM events WHERE instr(poster_url, ?) > 0 OR instr(extra, ?) > 0 OR instr(body_html, ?) > 0', [url, url, url]),
         db.all('SELECT title FROM moments WHERE instr(photos, ?) > 0', [url]),
-        db.all('SELECT key FROM settings WHERE instr(value, ?) > 0', [url]),
+        db.all("SELECT key FROM settings WHERE key != 'image_styles' AND instr(value, ?) > 0", [url]),
     ])
     return [
         ...content.map(r => { const t = CONTENT_TYPES[r.type]; const d = parseJson(r.data, {}); return `${t?.label || r.type}: ${d[t?.title] || 'item'}` }),
@@ -146,11 +154,21 @@ async function releaseImages(user, urls) {
             if ((await imageUsage(url)).length) continue
             await deleteFile(m.file_id)
             await db.run('DELETE FROM media WHERE id = ?', [m.id])
+            await forgetImageStyle(url)
             await audit(user, 'delete', 'media', m.id, `Removed from ImageKit (no longer used): ${m.name || url}`)
         } catch (e) {
             console.error('[media] cleanup failed for', url, e.message)
         }
     }
+}
+
+/** Drop the crop settings of an image that no longer exists. */
+async function forgetImageStyle(url) {
+    const row = await getDb().first("SELECT value FROM settings WHERE key = 'image_styles'")
+    const styles = parseJson(row?.value, {})
+    if (!styles[url]) return
+    delete styles[url]
+    await getDb().run("UPDATE settings SET value = ?, updated_at = datetime('now') WHERE key = 'image_styles'", [JSON.stringify(styles)])
 }
 
 /* ───────────── route table ───────────── */
@@ -603,6 +621,19 @@ route('PUT', '/api/admin/settings/:key', async ({ user, params, body }) => {
         let cleaned = { ...current }
         for (const f of SETTINGS_FORMS[key].fields) cleaned = setPath(cleaned, f.name, cleanField(f, getPath(value, f.name)))
         value = cleaned
+    } else if (key === 'layout') {
+        value = cleanLayout(value)
+    } else if (key === 'image_styles') {
+        // The admin sends only the images it changed; null removes an image's crop.
+        const current = (await loadSettings(['image_styles'])).image_styles || {}
+        value = { ...current }
+        for (const [url, style] of Object.entries(body.value).slice(0, 200)) {
+            const u = safeUrl(url)
+            if (!u) continue
+            const clean = cleanImageStyle(style)
+            if (clean) value[u] = clean
+            else delete value[u]
+        }
     } else if (key === 'notifications') {
         value = {
             orderRecipients: emailList(value.orderRecipients).join(', '), queryRecipients: emailList(value.queryRecipients).join(', '),
@@ -622,8 +653,8 @@ route('PUT', '/api/admin/settings/:key', async ({ user, params, body }) => {
     const before = await db.first('SELECT value FROM settings WHERE key = ?', [key])
     await db.run("INSERT INTO settings (key, value, updated_at) VALUES (?, ?, datetime('now')) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at", [key, json])
     await audit(user, 'update', 'settings', key)
-    await releaseImages(user, dropped(imageUrls(before?.value), imageUrls(json)))
-    return { ok: true }
+    if (key !== 'image_styles') await releaseImages(user, dropped(imageUrls(before?.value), imageUrls(json)))
+    return { ok: true, value }
 })
 
 /* ── admin: media ── */
@@ -776,7 +807,7 @@ route('DELETE', '/api/admin/users/:id', async ({ user, params }) => {
 route('POST', '/api/admin/email-test', async ({ user, body }) => {
     requireRole(user, 'admin')
     const to = emailList(body.to || user.email)
-    const r = await sendMail({ kind: 'test', to, subject: 'IEEE ITS — SMTP test email', html: '<p>Your SMTP settings work. 🎉</p><p>— IEEE ITS Website Notification System</p>' })
+    const r = await sendMail({ kind: 'test', to, subject: 'IEEE ITS — SMTP test email', html: '<p>Your SMTP settings work.</p><p>— IEEE ITS Website Notification System</p>' })
     if (!r.ok) fail(400, `Email failed: ${r.error}`)
     return { ok: true }
 })

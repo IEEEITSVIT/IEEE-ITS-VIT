@@ -15,40 +15,43 @@ import { Orders, Queries, Subscribers } from './pages/Inbox'
 import Users from './pages/Users'
 import EmailSettings from './pages/EmailSettings'
 import AuditLog from './pages/AuditLog'
+import DesignEditor from './pages/DesignEditor'
+import Icon from './icons'
 import './admin.css'
 
 const NAV = [
-    { group: 'Overview', items: [{ to: '/admin', label: 'Dashboard', icon: '📊', end: true }] },
+    { group: 'Overview', items: [{ to: '/admin', label: 'Dashboard', icon: 'dashboard', end: true }] },
     {
         group: 'Home & Layout', items: [
-            { to: '/admin/s/home', label: 'Home Page Text', icon: '🏠' },
-            { to: '/admin/c/banners', label: 'Home Banners', icon: '🖼️' },
-            { to: '/admin/c/popups', label: 'Popups', icon: '🪧' },
-            { to: '/admin/c/announcements', label: 'Announcement Bar', icon: '📣' },
-            { to: '/admin/c/gallery', label: 'Home Photo Marquee', icon: '🎞️' },
-            { to: '/admin/c/domains', label: 'Domains', icon: '🧩' },
-            { to: '/admin/s/pages', label: 'Page Headers', icon: '🔤' },
+            { to: '/admin/design', label: 'Design & Layout', icon: 'design' },
+            { to: '/admin/s/home', label: 'Home Page Text', icon: 'home' },
+            { to: '/admin/c/banners', label: 'Home Banners', icon: 'image' },
+            { to: '/admin/c/popups', label: 'Popups', icon: 'popup' },
+            { to: '/admin/c/announcements', label: 'Announcement Bar', icon: 'megaphone' },
+            { to: '/admin/c/gallery', label: 'Home Photo Marquee', icon: 'film' },
+            { to: '/admin/c/domains', label: 'Domains', icon: 'grid' },
+            { to: '/admin/s/pages', label: 'Page Headers', icon: 'type' },
         ],
     },
-    { group: 'Events', items: [{ to: '/admin/events', label: 'Events & Timeline', icon: '📅' }, { to: '/admin/moments', label: 'Moments (Albums)', icon: '📸' }] },
-    { group: 'People', items: [{ to: '/admin/c/board', label: 'Board Members', icon: '👥' }, { to: '/admin/c/faculty', label: 'Faculty', icon: '🎓' }, { to: '/admin/c/web_team', label: 'Web Team', icon: '💻' }] },
-    { group: 'Publications', items: [{ to: '/admin/c/blogs', label: 'Blogs', icon: '📝' }, { to: '/admin/c/magazines', label: 'Magazines', icon: '📕' }, { to: '/admin/c/vlogs', label: 'Vlogs', icon: '🎬' }, { to: '/admin/c/faqs', label: 'FAQs', icon: '❓' }] },
+    { group: 'Events', items: [{ to: '/admin/events', label: 'Events & Timeline', icon: 'calendar' }, { to: '/admin/moments', label: 'Moments (Albums)', icon: 'camera' }] },
+    { group: 'People', items: [{ to: '/admin/c/board', label: 'Board Members', icon: 'users' }, { to: '/admin/c/faculty', label: 'Faculty', icon: 'school' }, { to: '/admin/c/web_team', label: 'Web Team', icon: 'code' }] },
+    { group: 'Publications', items: [{ to: '/admin/c/blogs', label: 'Blogs', icon: 'pen' }, { to: '/admin/c/magazines', label: 'Magazines', icon: 'book' }, { to: '/admin/c/vlogs', label: 'Vlogs', icon: 'video' }, { to: '/admin/c/faqs', label: 'FAQs', icon: 'help' }] },
     {
         group: 'Store & Inbox', items: [
-            { to: '/admin/orders', label: 'Orders', icon: '📦' }, { to: '/admin/queries', label: 'Queries', icon: '✉️' },
-            { to: '/admin/subscribers', label: 'Subscribers', icon: '📬' }, { to: '/admin/c/merch', label: 'Merch Products', icon: '👕' }, { to: '/admin/s/merch', label: 'Merch Settings', icon: '⚙️' },
+            { to: '/admin/orders', label: 'Orders', icon: 'box' }, { to: '/admin/queries', label: 'Queries', icon: 'mail' },
+            { to: '/admin/subscribers', label: 'Subscribers', icon: 'inbox' }, { to: '/admin/c/merch', label: 'Merch Products', icon: 'shirt' }, { to: '/admin/s/merch', label: 'Merch Settings', icon: 'settings' },
         ],
     },
-    { group: 'Navigation & Links', items: [{ to: '/admin/c/nav_links', label: 'Navbar Menu', icon: '🧭' }, { to: '/admin/c/footer_links', label: 'Footer Links', icon: '🔗' }, { to: '/admin/c/social_links', label: 'Social Links', icon: '🌐' }] },
-    { group: 'Media', items: [{ to: '/admin/media', label: 'Media Library', icon: '🗂️' }] },
+    { group: 'Navigation & Links', items: [{ to: '/admin/c/nav_links', label: 'Navbar Menu', icon: 'compass' }, { to: '/admin/c/footer_links', label: 'Footer Links', icon: 'link' }, { to: '/admin/c/social_links', label: 'Social Links', icon: 'globe' }] },
+    { group: 'Media', items: [{ to: '/admin/media', label: 'Media Library', icon: 'folder' }] },
     {
         group: 'Settings', items: [
-            { to: '/admin/s/site', label: 'Site & Contact', icon: '🏷️' }, { to: '/admin/s/seo', label: 'SEO', icon: '🔎' },
-            { to: '/admin/s/appearance', label: 'Animations', icon: '✨' }, { to: '/admin/s/blogs', label: 'Blogs Page', icon: '📰' },
-            { to: '/admin/s/vlogs', label: 'Vlogs Page', icon: '📺' }, { to: '/admin/s/webteam', label: 'Web Team Page', icon: '🧑‍💻' },
-            { to: '/admin/s/games', label: 'Games Page', icon: '🎮' },
-            { to: '/admin/email', label: 'Email & SMTP', icon: '📮', admin: true }, { to: '/admin/users', label: 'Users & Roles', icon: '🔐', admin: true },
-            { to: '/admin/audit', label: 'Audit Log', icon: '📜', admin: true },
+            { to: '/admin/s/site', label: 'Site & Contact', icon: 'tag' }, { to: '/admin/s/seo', label: 'SEO', icon: 'search' },
+            { to: '/admin/s/appearance', label: 'Animations', icon: 'sparkles' }, { to: '/admin/s/blogs', label: 'Blogs Page', icon: 'news' },
+            { to: '/admin/s/vlogs', label: 'Vlogs Page', icon: 'tv' }, { to: '/admin/s/webteam', label: 'Web Team Page', icon: 'code' },
+            { to: '/admin/s/games', label: 'Games Page', icon: 'gamepad' },
+            { to: '/admin/email', label: 'Email & SMTP', icon: 'send', admin: true }, { to: '/admin/users', label: 'Users & Roles', icon: 'lock', admin: true },
+            { to: '/admin/audit', label: 'Audit Log', icon: 'scroll', admin: true },
         ],
     },
 ]
@@ -130,7 +133,7 @@ export default function AdminApp() {
                                         <p>{g.group}</p>
                                         {items.map(i => (
                                             <NavLink key={i.to} to={i.to} end={i.end} className={({ isActive }) => (isActive ? 'active' : '')}>
-                                                <span>{i.icon}</span>{i.label}
+                                                <Icon name={i.icon} />{i.label}
                                             </NavLink>
                                         ))}
                                     </div>
@@ -141,10 +144,10 @@ export default function AdminApp() {
                     <div className="adm-scrim" onClick={() => setNavOpen(false)} />
                     <div className="adm-main">
                         <header className="adm-topbar">
-                            <button className="adm-icon-btn adm-menu" onClick={() => setNavOpen(v => !v)} aria-label="Toggle menu">☰</button>
+                            <button className="adm-icon-btn adm-menu" onClick={() => setNavOpen(v => !v)} aria-label="Toggle menu"><Icon name="menu" /></button>
                             <div className="adm-topbar-spacer" />
-                            <button className="adm-btn small ghost" onClick={() => refresh(true)} title="Reload site content">⟳ Sync</button>
-                            <a className="adm-btn small ghost" href="/" target="_blank" rel="noreferrer">Website ↗</a>
+                            <button className="adm-btn small ghost" onClick={() => refresh(true)} title="Reload site content"><Icon name="refresh" size={16} /> Sync</button>
+                            <a className="adm-btn small ghost" href="/" target="_blank" rel="noreferrer">Website <Icon name="external" size={15} /></a>
                             <div className="adm-user">
                                 <span className="adm-avatar">{user.name[0]?.toUpperCase()}</span>
                                 <div><strong>{user.name}</strong><small>{user.role}</small></div>
@@ -157,6 +160,7 @@ export default function AdminApp() {
                                     <Route path="/admin" element={<Dashboard />} />
                                     <Route path="/admin/c/:type" element={<ContentRoute />} />
                                     <Route path="/admin/s/:key" element={<SettingsRoute />} />
+                                    <Route path="/admin/design" element={<DesignEditor />} />
                                     <Route path="/admin/events" element={<EventsManager />} />
                                     <Route path="/admin/moments" element={<MomentsManager />} />
                                     <Route path="/admin/media" element={<MediaLibrary />} />

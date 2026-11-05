@@ -8,6 +8,7 @@ import PageHeader from '../components/PageHeader'
 import Seo from '../components/Seo'
 import Img from '../components/Img'
 import { Reveal } from '../components/Reveal'
+import Section from '../components/Section'
 
 export default function Merch() {
     const { user } = useAuth()
@@ -46,7 +47,7 @@ export default function Merch() {
         <>
             <Seo />
             <PageHeader page="merch" />
-            <section className="section" style={{ borderTop: 0 }}>
+            <Section id="merch.list" className="section" style={{ borderTop: 0 }}>
                 <div className="wrap">
                     {user ? (
                         <div className="game-tabs">
@@ -87,7 +88,7 @@ export default function Merch() {
                         </div>
                     )}
                 </div>
-            </section>
+            </Section>
 
             <AnimatePresence>
                 {sel && (

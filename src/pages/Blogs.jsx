@@ -9,6 +9,7 @@ import Img from '../components/Img'
 import PageHeader from '../components/PageHeader'
 import { Reveal } from '../components/Reveal'
 import { SectionHead } from '../components/Cards'
+import Section from '../components/Section'
 
 function Subscribe({ cfg }) {
     const [email, setEmail] = useState('')
@@ -66,7 +67,7 @@ export default function Blogs() {
         <>
             <Seo />
             <PageHeader page="blogs" />
-            <section className="section" style={{ borderTop: 0 }}>
+            <Section id="blogs.list" className="section" style={{ borderTop: 0 }}>
                 <div className="wrap">
                     <div className="grid g-3">
                         {blogs.map((b, i) => (
@@ -84,7 +85,7 @@ export default function Blogs() {
                     </div>
                     {!blogs.length && <p className="empty">No articles yet</p>}
                 </div>
-            </section>
+            </Section>
             {cfg.magazineEnabled !== false && (
                 <section className="section">
                     <div className="wrap">

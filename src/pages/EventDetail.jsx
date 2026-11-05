@@ -9,6 +9,7 @@ import { Reveal } from '../components/Reveal'
 import { Countdown, useEventImage } from '../components/Cards'
 import { formatEventDate } from '../../shared/cms.js'
 import { sanitizeHtml, sanitizeInline, label } from '../lib/safe'
+import Section from '../components/Section'
 
 export default function EventDetail({ slug: fixedSlug }) {
     const params = useParams()
@@ -45,7 +46,7 @@ export default function EventDetail({ slug: fixedSlug }) {
         <>
             <Seo title={e.title} description={e.summary} image={e.poster_url} type="article" jsonLd={jsonLd} />
             <PageHeader title={e.title} overline={`Events / ${e.tag || 'Event'}`} subtitle={e.summary} wide />
-            <section className="section" style={{ borderTop: 0 }}>
+            <Section id="event.detail" className="section" style={{ borderTop: 0 }}>
                 <div className="wrap ev-hero">
                     <Reveal>
                         <Img src={pic.src(e)} alt={`${e.title} poster`} ratio="16x9" width={1400} contain={!!e.poster_url} eager fallback={pic.fallback} />
@@ -57,10 +58,10 @@ export default function EventDetail({ slug: fixedSlug }) {
                         {x.links?.map((l, i) => <SmartLink key={i} to={l.url} className="btn">{l.label}</SmartLink>)}
                     </Reveal>
                 </div>
-            </section>
+            </Section>
 
             {(x.highlights?.length > 0 || x.agenda?.length > 0) && (
-                <section className="section">
+                <Section id="event.detail" className="section">
                     <div className="wrap split">
                         {x.highlights?.length > 0 && (
                             <div>
@@ -82,7 +83,7 @@ export default function EventDetail({ slug: fixedSlug }) {
                             </div>
                         )}
                     </div>
-                </section>
+                </Section>
             )}
 
             {e.body_html && <section className="section"><div className="wrap"><div className="prose" dangerouslySetInnerHTML={{ __html: sanitizeHtml(e.body_html) }} /></div></section>}

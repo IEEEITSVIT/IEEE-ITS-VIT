@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useSite } from '../context/SiteContext'
 import PageHeader from '../components/PageHeader'
 import Seo from '../components/Seo'
+import Section from '../components/Section'
 
 export default function FAQ() {
     const { list } = useSite()
@@ -16,7 +17,7 @@ export default function FAQ() {
         <>
             <Seo jsonLd={jsonLd} />
             <PageHeader page="faq" />
-            <section className="section" style={{ borderTop: 0 }}>
+            <Section id="faq.list" className="section" style={{ borderTop: 0 }}>
                 <div className="wrap split narrow-left">
                     <div><span className="label">{faqs.length} questions</span></div>
                     <div className="faq">
@@ -34,7 +35,7 @@ export default function FAQ() {
                         ))}
                     </div>
                 </div>
-            </section>
+            </Section>
         </>
     )
 }

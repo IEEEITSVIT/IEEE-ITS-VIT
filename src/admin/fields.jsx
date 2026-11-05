@@ -1,8 +1,11 @@
 /* Schema-driven form fields for the CMS (see shared/cms.js for field definitions). */
 import { useEffect, useRef, useState } from 'react'
 import { api } from '../lib/api'
+import { img } from '../lib/safe'
+import { useSite } from '../context/SiteContext'
 import { getPath, setPath } from '../../shared/cms.js'
 import { Modal, Switch, useToast, Spinner } from './ui'
+import Icon from './icons'
 
 const MAX_UPLOAD = 15 * 1024 * 1024
 const ACCEPT = 'image/png,image/jpeg,image/webp,image/gif,image/svg+xml,image/avif'
@@ -77,7 +80,7 @@ export function MediaPicker({ open, onClose, onPick, multiple }) {
         <Modal open={open} onClose={onClose} title="Media library" wide>
             <div className="adm-picker-bar">
                 <button className="adm-btn primary" disabled={!ikReady || !!progress} onClick={() => fileRef.current.click()}>
-                    {progress ? `Uploading ${progress}` : '⬆ Upload to ImageKit'}
+                    {progress ? `Uploading ${progress}` : 'Upload to ImageKit'}
                 </button>
                 <input ref={fileRef} type="file" accept={ACCEPT} multiple={multiple} hidden onChange={e => { upload(e.target.files); e.target.value = '' }} />
                 <div className="adm-row grow">
@@ -108,9 +111,94 @@ export function MediaPicker({ open, onClose, onPick, multiple }) {
 
 export const thumb = u => (/ik\.imagekit\.io/.test(u) ? `${u}${u.includes('?') ? '&' : '?'}tr=w-300,h-300,c-at_max` : u)
 
+/* ---------- Crop / fit editor (stored per image in settings.image_styles) ---------- */
+const CROP_DEFAULT = { fit: 'cover', x: 50, y: 50, zoom: 1 }
+const SHAPES = [['1x1', 'Square'], ['4x5', 'Portrait'], ['4x3', 'Card'], ['16x9', 'Wide'], ['21x9', 'Banner']]
+const cropStyle = st => ({ objectFit: st.fit, objectPosition: `${st.x}% ${st.y}%`, ...(st.zoom > 1 ? { scale: String(st.zoom), transformOrigin: `${st.x}% ${st.y}%` } : {}) })
+const ratioOf = r => r.replace('x', ' / ')
+
+export function ImageAdjust({ url, onClose }) {
+    const { settings, refresh } = useSite()
+    const toast = useToast()
+    const [st, setSt] = useState(() => ({ ...CROP_DEFAULT, ...(settings.image_styles?.[url] || {}) }))
+    const [shape, setShape] = useState('16x9')
+    const [saving, setSaving] = useState(false)
+    const drag = useRef(null)
+    const src = img(url, { w: 1400 })
+
+    const onDown = e => {
+        if (st.fit !== 'cover') return
+        e.currentTarget.setPointerCapture(e.pointerId)
+        const r = e.currentTarget.getBoundingClientRect()
+        drag.current = { x: e.clientX, y: e.clientY, sx: st.x, sy: st.y, w: r.width, h: r.height }
+    }
+    const onMove = e => {
+        const d = drag.current
+        if (!d) return
+        const clamp = v => Math.round(Math.min(100, Math.max(0, v)))
+        // Dragging the photo right reveals more of its left side, so the focal point moves the other way.
+        setSt(s => ({ ...s, x: clamp(d.sx - ((e.clientX - d.x) / d.w) * 100 / s.zoom), y: clamp(d.sy - ((e.clientY - d.y) / d.h) * 100 / s.zoom) }))
+    }
+    const apply = async () => {
+        setSaving(true)
+        try {
+            const same = st.fit === 'cover' && st.x === 50 && st.y === 50 && st.zoom === 1
+            await api.put('/admin/settings/image_styles', { value: { [url]: same ? null : st } })
+            toast('Photo framing applied everywhere this photo is used')
+            refresh(true)
+            onClose()
+        } catch (e) { toast(e.message, 'error') }
+        finally { setSaving(false) }
+    }
+
+    return (
+        <Modal open onClose={onClose} title="Adjust photo" wide>
+            <div className="adm-crop">
+                <div className="adm-crop-main">
+                    <div className="adm-seg wrap">
+                        {SHAPES.map(([r, l]) => <button key={r} type="button" className={shape === r ? 'on' : ''} onClick={() => setShape(r)}>{l} {r.replace('x', ':')}</button>)}
+                    </div>
+                    <div className={`adm-crop-stage${st.fit === 'cover' ? ' draggable' : ''}`} style={{ aspectRatio: ratioOf(shape), width: `min(100%, calc(58vh * ${ratioOf(shape)}))` }}
+                        onPointerDown={onDown} onPointerMove={onMove} onPointerUp={() => { drag.current = null }} onPointerCancel={() => { drag.current = null }}>
+                        <img src={src} alt="" draggable={false} style={cropStyle(st)} />
+                        {st.fit === 'cover' && <span className="adm-crop-hint">Drag to reposition</span>}
+                    </div>
+                </div>
+                <div className="adm-crop-side">
+                    <div className="adm-prop"><label>Fit</label>
+                        <div className="adm-seg">
+                            <button type="button" className={st.fit === 'cover' ? 'on' : ''} onClick={() => setSt(s => ({ ...s, fit: 'cover' }))}>Fill frame (crop)</button>
+                            <button type="button" className={st.fit === 'contain' ? 'on' : ''} onClick={() => setSt(s => ({ ...s, fit: 'contain', zoom: 1 }))}>Show whole photo</button>
+                        </div>
+                    </div>
+                    <div className="adm-prop"><label>Zoom</label>
+                        <div className="adm-range">
+                            <input type="range" min="1" max="3" step="0.05" value={st.zoom} disabled={st.fit !== 'cover'} onChange={e => setSt(s => ({ ...s, zoom: Number(e.target.value) }))} />
+                            <span>{Math.round(st.zoom * 100)}%</span>
+                        </div>
+                    </div>
+                    <div className="adm-prop"><label>Focus point</label><span className="adm-hint">{st.x}% across · {st.y}% down</span></div>
+                    <p className="adm-hint">How it will look in each frame used on the site:</p>
+                    <div className="adm-crop-strip">
+                        {SHAPES.map(([r, l]) => (
+                            <figure key={r}><div style={{ aspectRatio: ratioOf(r) }}><img src={src} alt="" style={cropStyle(st)} /></div><figcaption>{l}</figcaption></figure>
+                        ))}
+                    </div>
+                </div>
+            </div>
+            <div className="adm-row end">
+                <button type="button" className="adm-btn ghost" onClick={() => setSt(CROP_DEFAULT)}><Icon name="reset" size={15} /> Reset</button>
+                <button type="button" className="adm-btn ghost" onClick={onClose}>Cancel</button>
+                <button type="button" className="adm-btn primary" disabled={saving} onClick={apply}>{saving ? 'Applying…' : 'Apply'}</button>
+            </div>
+        </Modal>
+    )
+}
+
 /* ---------- Single image ---------- */
 function ImageInput({ value, onChange }) {
     const [open, setOpen] = useState(false)
+    const [adjust, setAdjust] = useState(false)
     const [busy, setBusy] = useState(false)
     const toast = useToast()
     const fileRef = useRef()
@@ -129,11 +217,13 @@ function ImageInput({ value, onChange }) {
                 <div className="adm-row">
                     <button type="button" className="adm-btn small" onClick={() => setOpen(true)}>Library</button>
                     <button type="button" className="adm-btn small" disabled={busy} onClick={() => fileRef.current.click()}>{busy ? 'Uploading…' : 'Upload'}</button>
+                    {value && <button type="button" className="adm-btn small" onClick={() => setAdjust(true)}><Icon name="crop" size={14} /> Adjust</button>}
                     {value && <button type="button" className="adm-btn small ghost" onClick={() => onChange('')}>Remove</button>}
                 </div>
                 <input ref={fileRef} type="file" accept={ACCEPT} hidden onChange={e => { quickUpload(e.target.files[0]); e.target.value = '' }} />
             </div>
             <MediaPicker open={open} onClose={() => setOpen(false)} onPick={onChange} />
+            {adjust && value && <ImageAdjust url={value} onClose={() => setAdjust(false)} />}
         </div>
     )
 }
@@ -141,6 +231,7 @@ function ImageInput({ value, onChange }) {
 /* ---------- Image list (albums) ---------- */
 function ImagesInput({ value = [], onChange }) {
     const [open, setOpen] = useState(false)
+    const [adjust, setAdjust] = useState(null)
     const move = (i, d) => {
         const j = i + d
         if (j < 0 || j >= value.length) return
@@ -156,6 +247,7 @@ function ImagesInput({ value = [], onChange }) {
                         <img src={thumb(u)} alt="" loading="lazy" />
                         <div className="adm-images-tools">
                             <button type="button" onClick={() => move(i, -1)} aria-label="Move left">◀</button>
+                            <button type="button" onClick={() => setAdjust(u)} aria-label="Adjust crop" title="Adjust crop"><Icon name="crop" size={13} /></button>
                             <button type="button" onClick={() => onChange(value.filter((_, k) => k !== i))} aria-label="Remove">✕</button>
                             <button type="button" onClick={() => move(i, 1)} aria-label="Move right">▶</button>
                         </div>
@@ -165,6 +257,7 @@ function ImagesInput({ value = [], onChange }) {
                 <button type="button" className="adm-images-add" onClick={() => setOpen(true)}>＋ Add photos</button>
             </div>
             <MediaPicker open={open} multiple onClose={() => setOpen(false)} onPick={urls => onChange([...value, ...urls])} />
+            {adjust && <ImageAdjust url={adjust} onClose={() => setAdjust(null)} />}
         </div>
     )
 }
@@ -188,8 +281,8 @@ function RichText({ value, onChange }) {
                 <button type="button" onClick={() => cmd('insertUnorderedList')}>• List</button>
                 <button type="button" onClick={() => cmd('insertOrderedList')}>1. List</button>
                 <button type="button" onClick={() => cmd('formatBlock', 'blockquote')}>❝</button>
-                <button type="button" onClick={() => { const u = prompt('Link URL (https://…)'); if (u && /^(https?:|mailto:|\/)/.test(u)) cmd('createLink', u) }}>🔗</button>
-                <button type="button" onClick={() => { const u = prompt('Image URL'); if (u && /^(https?:|\/)/.test(u)) cmd('insertImage', u) }}>🖼</button>
+                <button type="button" onClick={() => { const u = prompt('Link URL (https://…)'); if (u && /^(https?:|mailto:|\/)/.test(u)) cmd('createLink', u) }}>Link</button>
+                <button type="button" onClick={() => { const u = prompt('Image URL'); if (u && /^(https?:|\/)/.test(u)) cmd('insertImage', u) }}>Image</button>
                 <button type="button" onClick={() => cmd('removeFormat')}>⌫</button>
                 <button type="button" className={source ? 'on' : ''} onClick={() => setSource(s => !s)}>{'</>'}</button>
             </div>

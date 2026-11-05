@@ -2,6 +2,7 @@ import { useLocation } from 'react-router-dom'
 import { useSite } from '../context/SiteContext'
 import ContactForm from './ContactForm'
 import { Reveal, RevealText } from './Reveal'
+import Section from './Section'
 
 const HIDE_ON = ['/contact', '/login', '/join', '/suggestions']
 
@@ -13,7 +14,7 @@ export default function FooterContact() {
     if (!ff || ff.enabled === false || HIDE_ON.includes(pathname)) return null
     const site = settings.site || {}
     return (
-        <section className="section footer-contact" aria-labelledby="footer-contact-title">
+        <Section id="footer.contact" className="section footer-contact" aria-labelledby="footer-contact-title">
             <div className="wrap split">
                 <div>
                     {ff.overline && <span className="label">{ff.overline}</span>}
@@ -29,6 +30,6 @@ export default function FooterContact() {
                 </Reveal>
             </div>
             <span id="footer-contact-title" hidden>{ff.title}</span>
-        </section>
+        </Section>
     )
 }

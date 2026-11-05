@@ -58,7 +58,6 @@ export const CONTENT_TYPES = {
     domains: {
         label: 'Domains', singular: 'Domain', group: 'Home & Layout', title: 'title',
         fields: [
-            { name: 'icon', label: 'Icon (emoji)', type: 'text' },
             { name: 'title', label: 'Title', type: 'text', required: true },
             { name: 'desc', label: 'Description', type: 'textarea' },
         ],
@@ -143,7 +142,6 @@ export const CONTENT_TYPES = {
         fields: [
             { name: 'title', label: 'Title', type: 'text', required: true },
             { name: 'edition', label: 'Edition', type: 'text' },
-            { name: 'icon', label: 'Icon (emoji)', type: 'text' },
             { name: 'desc', label: 'Description', type: 'textarea' },
             { name: 'url', label: 'Link / PDF', type: 'url' },
         ],

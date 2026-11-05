@@ -1,6 +1,7 @@
 /* Small UI kit for the admin dashboard. */
 import { createContext, useCallback, useContext, useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import Icon from './icons'
 
 /* ---------- Toasts ---------- */
 const ToastCtx = createContext(() => {})
@@ -18,7 +19,7 @@ export function ToastProvider({ children }) {
                 <AnimatePresence>
                     {toasts.map(t => (
                         <motion.div key={t.id} className={`adm-toast ${t.tone}`} initial={{ opacity: 0, y: 20, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, x: 40 }}>
-                            {t.tone === 'error' ? '⚠️' : '✅'} {t.message}
+                            <Icon name={t.tone === 'error' ? 'alert' : 'check'} size={16} /> {t.message}
                         </motion.div>
                     ))}
                 </AnimatePresence>
@@ -57,21 +58,36 @@ export function ConfirmProvider({ children }) {
 export const useConfirm = () => useContext(ConfirmCtx)
 
 /* ---------- Drawer ---------- */
-export function Drawer({ open, title, onClose, children, footer, wide }) {
+/** Side panel for editing. Pass `preview` (a <PreviewFrame>) to show the form and a live preview side by side. */
+export function Drawer({ open, title, onClose, children, footer, wide, preview }) {
+    const [showPreview, setShowPreview] = useState(() => typeof window !== 'undefined' && window.innerWidth >= 1100)
     useEffect(() => {
         if (!open) return
         const onKey = e => e.key === 'Escape' && onClose()
         window.addEventListener('keydown', onKey)
         return () => window.removeEventListener('keydown', onKey)
     }, [open, onClose])
+    const split = !!preview && showPreview
     return (
         <AnimatePresence>
             {open && (
                 <motion.div className="adm-drawer-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose}>
-                    <motion.aside className={`adm-drawer${wide ? ' wide' : ''}`} initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
+                    <motion.aside className={`adm-drawer${wide ? ' wide' : ''}${split ? ' split' : ''}`} initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
                         transition={{ type: 'spring', damping: 32, stiffness: 300 }} onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" aria-label={title}>
-                        <header><h3>{title}</h3><button className="adm-icon-btn" onClick={onClose} aria-label="Close">✕</button></header>
-                        <div className="adm-drawer-body">{children}</div>
+                        <header>
+                            <h3>{title}</h3>
+                            <div className="adm-row">
+                                {preview && (
+                                    <button className={`adm-btn small${split ? ' primary' : ''}`} onClick={() => setShowPreview(v => !v)} aria-pressed={split}>
+                                        <Icon name={split ? 'eyeOff' : 'eye'} size={16} /> {split ? 'Hide preview' : 'Preview'}
+                                    </button>
+                                )}
+                                <button className="adm-icon-btn" onClick={onClose} aria-label="Close"><Icon name="close" size={18} /></button>
+                            </div>
+                        </header>
+                        {split
+                            ? <div className="adm-drawer-split"><div className="adm-drawer-body">{children}</div><div className="adm-drawer-preview">{preview}</div></div>
+                            : <div className="adm-drawer-body">{children}</div>}
                         {footer && <footer>{footer}</footer>}
                     </motion.aside>
                 </motion.div>
@@ -86,7 +102,7 @@ export function Modal({ open, onClose, title, children, wide }) {
             {open && (
                 <motion.div className="adm-modal-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose}>
                     <motion.div className={`adm-modal${wide ? ' wide' : ''}`} initial={{ scale: 0.96, y: 12 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.96 }} onClick={e => e.stopPropagation()} role="dialog" aria-modal="true">
-                        <header><h3>{title}</h3><button className="adm-icon-btn" onClick={onClose} aria-label="Close">✕</button></header>
+                        <header><h3>{title}</h3><button className="adm-icon-btn" onClick={onClose} aria-label="Close"><Icon name="close" size={18} /></button></header>
                         {children}
                     </motion.div>
                 </motion.div>
@@ -113,7 +129,7 @@ export const PageTitle = ({ title, subtitle, children }) => (
     </div>
 )
 
-export const Empty = ({ icon = '🗂️', children }) => <div className="adm-empty"><div>{icon}</div><p>{children}</p></div>
+export const Empty = ({ icon = 'folder', children }) => <div className="adm-empty"><div><Icon name={icon} size={30} /></div><p>{children}</p></div>
 
 export const Spinner = () => <div className="adm-spinner" aria-label="Loading" />
 

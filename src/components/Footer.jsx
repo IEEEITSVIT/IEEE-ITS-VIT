@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { useSite } from '../context/SiteContext'
 import SmartLink from './SmartLink'
 import SocialIcon from './SocialIcon'
+import Section from './Section'
 
 export default function Footer() {
     const { list, settings } = useSite()
@@ -11,7 +12,7 @@ export default function Footer() {
     const cols = Object.keys(groups).length + 1
 
     return (
-        <footer className="footer">
+        <Section id="footer" as="footer" className="footer">
             <div className="wrap">
                 <div className="footer-top" style={{ '--cols': cols }}>
                     <div className="footer-brand">
@@ -47,6 +48,6 @@ export default function Footer() {
                     <span>{site.madeWith} <Link to="/web-team">Web Team</Link></span>
                 </div>
             </div>
-        </footer>
+        </Section>
     )
 }

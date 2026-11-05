@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import { api } from '../../lib/api'
 import { uploadToImageKit, thumb } from '../fields'
 import { PageTitle, Empty, Spinner, useToast, useConfirm, useLoader, fmtDate } from '../ui'
+import Icon from '../icons'
 
 export default function MediaLibrary() {
     const toast = useToast()
@@ -41,7 +42,7 @@ export default function MediaLibrary() {
             </PageTitle>
             {data && !data.imagekit && <p className="adm-hint warn">ImageKit is not connected. Add IMAGEKIT_PUBLIC_KEY, IMAGEKIT_PRIVATE_KEY and IMAGEKIT_URL_ENDPOINT to the environment to enable uploads.</p>}
             <div onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); if (data?.imagekit) upload(e.dataTransfer.files) }}>
-                {loading ? <Spinner /> : items.length === 0 ? <Empty icon="🖼️">No uploads yet.</Empty> : (
+                {loading ? <Spinner /> : items.length === 0 ? <Empty icon="image">No uploads yet.</Empty> : (
                     <div className="adm-media-grid large">
                         {items.map(m => (
                             <figure key={m.id} className="adm-media-card">
@@ -52,7 +53,7 @@ export default function MediaLibrary() {
                                     <div className="adm-row">
                                         <button className="adm-btn small" onClick={() => { navigator.clipboard.writeText(m.url); toast('URL copied') }}>Copy URL</button>
                                         <a className="adm-btn small ghost" href={m.url} target="_blank" rel="noreferrer">Open</a>
-                                        <button className="adm-btn small ghost danger-text" onClick={() => remove(m)}>🗑</button>
+                                        <button className="adm-btn small ghost danger-text" onClick={() => remove(m)} aria-label="Delete"><Icon name="trash" size={16} /></button>
                                     </div>
                                 </figcaption>
                             </figure>
