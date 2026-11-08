@@ -55,6 +55,8 @@ const P = {
     copy: 'M8 8h12v12H8zM4 16V4h12',
     menu: 'M4 6h16M4 12h16M4 18h16',
     close: 'M6 6l12 12M18 6L6 18',
+    briefcase: 'M3 7h18v13H3zM8 7V4h8v3M3 12h18',
+    trophy: 'M8 4h8v5a4 4 0 0 1-8 0zM8 6H4v1a4 4 0 0 0 4 4M16 6h4v1a4 4 0 0 1-4 4M12 13v4M8 21h8M10 17h4v4h-4z',
 }
 
 export default function Icon({ name, size = 18, className = '', title }) {

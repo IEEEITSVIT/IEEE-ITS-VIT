@@ -12,7 +12,7 @@
 
 const IC = 'https://ic-etite-28final.vercel.app'
 
-export const PUBLIC_SETTING_KEYS = ['site', 'home', 'pages', 'seo', 'appearance', 'merch', 'blogs', 'vlogs', 'webteam', 'games', 'layout', 'image_styles']
+export const PUBLIC_SETTING_KEYS = ['site', 'home', 'pages', 'seo', 'appearance', 'merch', 'blogs', 'vlogs', 'webteam', 'games', 'layout', 'image_styles', 'recruitment']
 
 export const DEFAULT_SETTINGS = {
     site: {
@@ -165,10 +165,20 @@ export const DEFAULT_SETTINGS = {
     // Admin → Design (per-section styles, home order) and per-image crop — see shared/layout.js
     layout: { sections: {}, order: { home: [] } },
     image_styles: {},
+    // Hidden until an admin opens it (Admin → Recruitment).
+    recruitment: { open: false, title: 'Recruitments', intro: 'Pick the domains you want to work in. Some domains have a short online test; shortlisted candidates are invited for an interview.', resultsPublished: false },
 }
 
 /* Admin-only settings (never sent by the public bootstrap API) */
 export const DEFAULT_PRIVATE_SETTINGS = {
+    recruitment_mail: {
+        selectedSubject: 'Welcome to IEEE ITS VIT — {{domains}}',
+        selectedBody: 'Hi {{name}},\n\nCongratulations! You have been selected to join IEEE ITS VIT in: {{domains}}.\n\nPlease join your domain group on WhatsApp:\n{{whatsapp}}\n\nWe are excited to work with you. Welcome to the chapter!\n\nIEEE ITS VIT',
+        notSelectedSubject: 'IEEE ITS VIT recruitment — thank you',
+        notSelectedBody: 'Hi {{name}},\n\nThank you for applying to IEEE ITS VIT ({{domains}}) and for the time and effort you put into the process. We received many strong applications and had only a few places this round, so we are not able to offer you a position right now.\n\nThis is not a measure of your potential. Our events, workshops and hackathons stay open to you, and we would genuinely love to see you apply again in the next recruitment.\n\nWishing you the very best,\nIEEE ITS VIT',
+        reminderSubject: 'Reminder: {{domain}} — IEEE ITS VIT recruitment',
+        reminderBody: 'Hi {{name}},\n\nA quick reminder about your IEEE ITS VIT application ({{domain}}).\n\nDeadlines:\n{{deadline}}\n\n{{exam}}\n\nAll the best!\nIEEE ITS VIT',
+    },
     notifications: {
         orderRecipients: 'ieeeits.vit@gmail.com',
         queryRecipients: 'ieeeits.vit@gmail.com',

@@ -160,3 +160,19 @@ export const fmtDate = s => {
     const d = new Date(String(s).includes('T') ? s : String(s).replace(' ', 'T') + 'Z')
     return isNaN(d) ? s : d.toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })
 }
+
+/* ---------- Deadlines: stored as UTC ISO, edited in local time ---------- */
+const pad = n => String(n).padStart(2, '0')
+export const isoToLocal = iso => {
+    if (!iso) return ''
+    const d = new Date(iso)
+    return Number.isNaN(d.getTime()) ? '' : `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+export const localToIso = v => (v ? new Date(v).toISOString() : null)
+export const DateTimeInput = ({ value, onChange, ...rest }) => (
+    <input type="datetime-local" className="adm-input" value={isoToLocal(value)} onChange={e => onChange(localToIso(e.target.value))} {...rest} />
+)
+export const fmtLocal = iso => (iso ? new Date(iso).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : '—')
+
+/** Toast text after a mail-out is queued. */
+export const queuedText = queued => `${queued.reduce((s, q) => s + q.total, 0)} emails queued — sending from the Outbox`

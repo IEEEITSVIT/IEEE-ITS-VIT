@@ -154,3 +154,39 @@ export async function notifySubscriber(email, list) {
         html: layout('New Subscriber', 'A visitor subscribed on the website.', [['Email', email], ['List', list], ['Date', when()]], ''),
     })
 }
+
+/* ───────────── Bulk / templated mail ───────────── */
+/** One pooled SMTP connection for sending a batch (much faster than a new connection per email). */
+export async function openTransport() {
+    const cfg = await smtpConfig()
+    if (!cfg.host || !cfg.user || !cfg.pass) return null
+    const transport = nodemailer.createTransport({
+        pool: true, maxConnections: 1, host: cfg.host, port: cfg.port, secure: cfg.secure,
+        auth: { user: cfg.user, pass: cfg.pass }, connectionTimeout: 8000, greetingTimeout: 8000, socketTimeout: 12000,
+    })
+    const from = `"${cfg.fromName.replace(/"/g, '')}" <${cfg.fromEmail}>`
+    return {
+        send: ({ to, subject, html, attachments }) => transport.sendMail({ from, to, subject, html, attachments }),
+        close: () => transport.close(),
+    }
+}
+
+/** Replace {{placeholders}}; unknown ones become empty. */
+export const fillTemplate = (text, vars = {}) => String(text || '').replace(/\{\{\s*(\w+)\s*\}\}/g, (_, k) => (vars[k] ?? ''))
+
+/**
+ * Turns an admin-written plain-text message into a simple, readable HTML email:
+ * paragraphs from blank lines, line breaks kept, links made clickable.
+ */
+export function messageHtml(title, text) {
+    const linked = esc(text).replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" style="color:#0b63c5">$1</a>')
+    const body = linked.split(/\n{2,}/).map(p => `<p style="margin:0 0 14px;line-height:1.6">${p.replace(/\n/g, '<br/>')}</p>`).join('')
+    return `
+<div style="font-family:Inter,Segoe UI,Arial,sans-serif;background:#f3f5f8;padding:24px;color:#14181f">
+  <div style="max-width:580px;margin:0 auto;background:#ffffff;border:1px solid #e3e7ee;border-radius:14px;overflow:hidden">
+    <div style="padding:18px 24px;border-bottom:3px solid #3d9bff;font-weight:700;font-size:17px">${esc(title)}</div>
+    <div style="padding:22px 24px;font-size:15px">${body}</div>
+  </div>
+  <p style="text-align:center;color:#7a8394;font-size:12px;margin-top:14px">IEEE ITS · VIT Vellore</p>
+</div>`
+}

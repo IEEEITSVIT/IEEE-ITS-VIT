@@ -32,6 +32,8 @@ export const SECTIONS = [
     { id: 'suggestions.main', page: '/suggestions', label: 'Suggestions page', kind: 'list' },
     { id: 'games.main', page: '/games', label: 'Games', kind: 'grid' },
     { id: 'event.detail', page: '/timeline', label: 'Event pages', kind: 'split', images: true },
+    { id: 'recruitment.main', page: '/recruitment', label: 'Recruitment portal', kind: 'grid' },
+    { id: 'portal.main', page: '/timeline', label: 'Event registration portals', kind: 'split', images: true },
     { id: 'footer.contact', page: '/', label: 'Contact form above footer', kind: 'split' },
     { id: 'footer', page: '/', label: 'Footer', kind: 'footer' },
 ]

@@ -16,6 +16,10 @@ import Users from './pages/Users'
 import EmailSettings from './pages/EmailSettings'
 import AuditLog from './pages/AuditLog'
 import DesignEditor from './pages/DesignEditor'
+import RecruitmentAdmin from './pages/RecruitmentAdmin'
+import PortalsAdmin from './pages/PortalsAdmin'
+import PortalEditor from './pages/PortalEditor'
+import Outbox from './pages/Outbox'
 import Icon from './icons'
 import './admin.css'
 
@@ -31,6 +35,14 @@ const NAV = [
             { to: '/admin/c/gallery', label: 'Home Photo Marquee', icon: 'film' },
             { to: '/admin/c/domains', label: 'Domains', icon: 'grid' },
             { to: '/admin/s/pages', label: 'Page Headers', icon: 'type' },
+        ],
+    },
+    {
+        group: 'Recruitment & Events', items: [
+            { to: '/admin/recruitment', label: 'Recruitment', icon: 'briefcase' },
+            { to: '/admin/portals', label: 'Event Portals', icon: 'trophy' },
+            { to: '/admin/outbox', label: 'Email Outbox', icon: 'send' },
+            { to: '/admin/s/recruitment_mail', label: 'Recruitment Emails', icon: 'mail', admin: true },
         ],
     },
     { group: 'Events', items: [{ to: '/admin/events', label: 'Events & Timeline', icon: 'calendar' }, { to: '/admin/moments', label: 'Moments (Albums)', icon: 'camera' }] },
@@ -161,6 +173,10 @@ export default function AdminApp() {
                                     <Route path="/admin/c/:type" element={<ContentRoute />} />
                                     <Route path="/admin/s/:key" element={<SettingsRoute />} />
                                     <Route path="/admin/design" element={<DesignEditor />} />
+                                    <Route path="/admin/recruitment" element={<RecruitmentAdmin />} />
+                                    <Route path="/admin/portals" element={<PortalsAdmin />} />
+                                    <Route path="/admin/portals/:id" element={<PortalEditor />} />
+                                    <Route path="/admin/outbox" element={<Outbox />} />
                                     <Route path="/admin/events" element={<EventsManager />} />
                                     <Route path="/admin/moments" element={<MomentsManager />} />
                                     <Route path="/admin/media" element={<MediaLibrary />} />

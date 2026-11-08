@@ -338,3 +338,32 @@ textarea.adm-input { resize: vertical; line-height: 1.5; }
   .adm-design-preview { height: 70vh; }
   .adm-crop { grid-template-columns: 1fr; }
 }
+
+/* ============ recruitment, event portals, outbox ============ */
+.adm-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--a-border); margin-bottom: 16px; overflow-x: auto; }
+.adm-tabs button { border: none; background: none; padding: 10px 14px; font: inherit; font-size: .88rem; font-weight: 600; color: var(--a-muted); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; }
+.adm-tabs button.on { color: var(--a-blue); border-bottom-color: var(--a-blue); }
+.adm-filters { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+.adm-filters .adm-input { width: auto; min-width: 140px; }
+.adm-filters .adm-input.search { flex: 1; min-width: 200px; }
+.adm-bulkbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 10px 12px; margin-bottom: 10px; background: var(--a-panel); border: 1px solid var(--a-border); border-radius: 12px; font-size: .85rem; }
+.adm-block { display: block; color: var(--a-muted); font-size: .76rem; margin-top: 2px; }
+.adm-table tr.sel td { background: var(--a-blue-soft); }
+.adm-progress { height: 8px; border-radius: 6px; background: #e8edf3; overflow: hidden; margin-bottom: 4px; }
+.adm-progress span { display: block; height: 100%; background: var(--a-blue); transition: width .3s; }
+.adm-qcard { display: flex; flex-direction: column; gap: 8px; padding: 12px; background: #fff; border: 1px solid var(--a-border); border-radius: 12px; }
+.adm-qcard p { margin: 0; }
+.adm-kv { display: grid; grid-template-columns: 120px 1fr; gap: 8px 12px; align-items: center; font-size: .86rem; }
+.adm-kv > span { color: var(--a-muted); }
+.adm-kv > b { font-weight: 600; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.adm-ok { color: var(--a-ok); }
+.adm-chipcheck { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border: 1px solid var(--a-border); border-radius: 20px; font-size: .8rem; cursor: pointer; background: #fff; }
+.adm-chipcheck:has(input:checked) { border-color: var(--a-blue); background: var(--a-blue-soft); color: var(--a-blue); }
+.adm-listrow { align-items: center; flex-wrap: wrap; }
+.adm-listrow > .adm-input { flex: 1; min-width: 120px; }
+.adm-member { display: flex; justify-content: space-between; gap: 8px; align-items: flex-start; padding: 4px 0; }
+.adm-member + .adm-member { border-top: 1px dashed var(--a-border); }
+.adm-member .adm-icon-btn { width: 26px; height: 26px; }
+.adm-cert-canvas { position: relative; width: 100%; border-radius: 8px; overflow: hidden; border: 1px solid var(--a-border); user-select: none; touch-action: none; }
+.adm-cert-canvas img { display: block; width: 100%; }
+.adm-cert-canvas span { position: absolute; white-space: nowrap; font-family: Helvetica, Arial, sans-serif; cursor: move; outline: 1px dashed rgba(0, 98, 155, .6); outline-offset: 2px; line-height: 1; }

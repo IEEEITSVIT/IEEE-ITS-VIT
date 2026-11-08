@@ -49,3 +49,24 @@ Key behaviours:
 
 `scripts/portraits/` makes every portrait consistent (same backdrop, framing and tone).
 See its README for usage and the photo brief to share with members.
+
+## Recruitment & event portals
+
+- **Recruitment** (Admin → Recruitment): hidden until switched on; then a *Recruitments* button appears next to Login / Sign up.
+  Only `@vitstudent.ac.in` accounts with a registration number and mobile number can apply, to one or more domains.
+  Domains have deadlines, optional timed tests (multiple choice is auto-scored, written answers are scored by the admin,
+  tab switches are logged) and an optional external proctored-exam link. Admins filter by score, shortlist for interview,
+  select (also directly, without a test — logged in the audit log), email results with each domain's WhatsApp link,
+  send reminders, and download the master data as Excel.
+- **Event portals** (Admin → Event Portals): any number of events at `/e/<link>`. Open link or email allowlist, solo or
+  team entries (join codes), per-round link submissions with deadlines, evaluators (by email) scoring against criteria,
+  qualification, published scores, winners, templated emails, certificates and a full Excel export. *Delete data* removes
+  every registration after the event.
+- **Certificates** are drawn in the browser (pdf-lib) from the admin's template: participants download their own, admins
+  download ZIPs or one combined PDF, or email them as attachments. Nothing is stored on the server.
+- **Email Outbox**: bulk email is queued and sent in batches within a daily limit (default 400 — Gmail allows ~500/day).
+  It sends while the Outbox page is open and once a day via the Vercel cron in `vercel.json`; set `CRON_SECRET`
+  in Vercel for the cron to run.
+- **Free tier**: during big registration rushes the Cloudflare API allows ~1,200 database requests per 5 minutes.
+  Deploying the gateway Worker in `workers/d1-gateway` (free: 100k requests/day) and setting `D1_GATEWAY_URL`
+  + `D1_GATEWAY_SECRET` removes that ceiling.

@@ -364,9 +364,27 @@ export const SETTINGS_FORMS = {
         ],
     },
     games: { label: 'Games Page', fields: [{ name: 'tip', label: '"Did you know?" tip', type: 'textarea' }] },
+    recruitment: {
+        label: 'Recruitment Portal', fields: [
+            { name: 'open', label: 'Recruitments open (shows the Recruitments button next to Login / Sign up)', type: 'toggle' },
+            { name: 'title', label: 'Page title', type: 'text' },
+            { name: 'intro', label: 'Introduction', type: 'textarea' },
+            { name: 'resultsPublished', label: 'Show final results (Selected / Not selected) to candidates', type: 'toggle' },
+        ],
+    },
+    recruitment_mail: {
+        label: 'Recruitment Emails', fields: [
+            { name: 'selectedSubject', label: 'Selected — subject', type: 'text' },
+            { name: 'selectedBody', label: 'Selected — message', type: 'textarea', help: 'Placeholders: {{name}} {{domains}} {{whatsapp}} (each selected domain with its WhatsApp group link).' },
+            { name: 'notSelectedSubject', label: 'Not selected — subject', type: 'text' },
+            { name: 'notSelectedBody', label: 'Not selected — message', type: 'textarea', help: 'Keep it kind. Placeholders: {{name}} {{domains}}.' },
+            { name: 'reminderSubject', label: 'Reminder — subject', type: 'text' },
+            { name: 'reminderBody', label: 'Reminder — message', type: 'textarea', help: 'Placeholders: {{name}} {{domain}} {{deadline}} {{exam}} (exam links with their deadlines).' },
+        ],
+    },
 }
 
-export const PRIVATE_SETTINGS = ['notifications', 'smtp']
+export const PRIVATE_SETTINGS = ['notifications', 'smtp', 'recruitment_mail']
 
 export const slugify = s => String(s || '').toLowerCase().normalize('NFKD').replace(/[^\w\s-]/g, '')
     .trim().replace(/[\s_]+/g, '-').replace(/-+/g, '-').slice(0, 80) || `item-${Date.now()}`

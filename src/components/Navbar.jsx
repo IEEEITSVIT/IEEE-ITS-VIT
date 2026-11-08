@@ -56,6 +56,7 @@ export default function Navbar() {
     const { user, logout, isStaff } = useAuth()
     const { list, settings } = useSite()
     const site = settings.site || {}
+    const recruiting = !!settings.recruitment?.open
     const [scrolled, setScrolled] = useState(false)
     const [open, setOpen] = useState(false)
 
@@ -102,6 +103,7 @@ export default function Navbar() {
                         )}
                     </ul>
                     <div className="nav-actions">
+                        {recruiting && <Link to="/recruitment" className={`btn sm desk recruit${pathname.startsWith('/recruitment') ? ' solid' : ''}`}>Recruitments</Link>}
                         {user ? (
                             <div className="desk">
                                 <Dropdown buttonClass="nav-user" label="Account menu" button={<>
@@ -111,6 +113,7 @@ export default function Navbar() {
                                 </>}>
                                     <Link to="/join" role="menuitem">My profile</Link>
                                     <Link to="/merch?tab=orders" role="menuitem">My bookings</Link>
+                                    {recruiting && <Link to="/recruitment" role="menuitem">My applications</Link>}
                                     {isStaff && <Link to="/admin" role="menuitem">Admin dashboard</Link>}
                                     <button role="menuitem" onClick={logout}>Sign out</button>
                                 </Dropdown>
@@ -136,6 +139,7 @@ export default function Navbar() {
                             </motion.div>
                         ))}
                         <div className="mm-actions">
+                            {recruiting && <Link to="/recruitment" className="btn solid recruit">Recruitments</Link>}
                             {user ? (
                                 <>
                                     <Link to="/join" className="btn">Profile</Link>

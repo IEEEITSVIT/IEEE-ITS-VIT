@@ -31,6 +31,12 @@ import Contact from './pages/Contact'
 
 // The admin dashboard is code-split so it never weighs down the public site.
 const AdminApp = lazy(() => import('./admin/AdminApp'))
+// Recruitment and event portals are loaded only when visited.
+const Recruitment = lazy(() => import('./pages/Recruitment'))
+const RecruitmentTest = lazy(() => import('./pages/RecruitmentTest'))
+const EventPortal = lazy(() => import('./pages/EventPortal'))
+const PortalJudge = lazy(() => import('./pages/PortalJudge'))
+const Lazy = ({ children }) => <Suspense fallback={<div className="wrap" style={{ padding: '120px 0' }}><div className="skeleton" style={{ height: 300 }} /></div>}>{children}</Suspense>
 
 function ScrollToTop() {
   const { pathname } = useLocation()
@@ -74,6 +80,8 @@ function App() {
     )
   }
 
+  // Tests run without the site's navigation so candidates are not pulled away mid-test.
+  const focusMode = location.pathname.startsWith('/recruitment/test/')
   // Blog articles share one page component, so keep them under a single transition key.
   const key = location.pathname.startsWith('/blogs') ? '/blogs' : location.pathname
 
@@ -87,9 +95,7 @@ function App() {
           <ScrollToTop />
           {PREVIEW && <PreviewBridge />}
           <ScrollProgress />
-          <AnnouncementBar />
-          <Navbar />
-          <SitePopup />
+          {!focusMode && <><AnnouncementBar /><Navbar /><SitePopup /></>}
           <AnimatePresence mode="wait">
             <Page key={key}>
               <Routes location={location}>
@@ -110,14 +116,17 @@ function App() {
                 <Route path="/suggestions" element={<Suggestions />} />
                 <Route path="/contact" element={<Contact />} />
                 <Route path="/vlogs" element={<Vlogs />} />
+                <Route path="/recruitment" element={<Lazy><Recruitment /></Lazy>} />
+                <Route path="/recruitment/test/:domainId" element={<Lazy><RecruitmentTest /></Lazy>} />
+                <Route path="/e/:slug" element={<Lazy><EventPortal /></Lazy>} />
+                <Route path="/e/:slug/judge" element={<Lazy><PortalJudge /></Lazy>} />
                 <Route path="/quanta-26" element={<EventDetail slug="quanta-26" />} />
                 <Route path="/qunata-26" element={<EventDetail slug="quanta-26" />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </Page>
           </AnimatePresence>
-          <FooterContact />
-          <Footer />
+          {!focusMode && <><FooterContact /><Footer /></>}
         </>
       )}
     </>

@@ -1,8 +1,9 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "functions": {
-    "api/index.js": { "maxDuration": 20, "includeFiles": "server/schema.sql" }
+    "api/index.js": { "maxDuration": 60, "includeFiles": "server/schema.sql" }
   },
+  "crons": [{ "path": "/api/cron/outbox", "schedule": "30 3 * * *" }],
   "rewrites": [
     { "source": "/sitemap.xml", "destination": "/api?__path=sitemap.xml" },
     { "source": "/robots.txt", "destination": "/api?__path=robots.txt" },

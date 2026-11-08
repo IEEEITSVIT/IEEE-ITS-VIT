@@ -20,6 +20,9 @@ import { notifyOrder, notifyQuery, notifySubscriber, sendMail, smtpConfig, sendP
 import { uploadAuth, deleteFile, imagekitConfigured } from './imagekit.js'
 import { DEFAULT_SETTINGS, DEFAULT_PRIVATE_SETTINGS, PUBLIC_SETTING_KEYS } from '../shared/defaults.js'
 import { cleanLayout, cleanImageStyle } from '../shared/layout.js'
+import { installRecruitment } from './recruit.js'
+import { installPortals } from './portals.js'
+import { quotaStatus, setDailyLimit, drainCampaigns, createCampaign } from './campaigns.js'
 import { CONTENT_TYPES, EVENT_FIELDS, MOMENT_FIELDS, SETTINGS_FORMS, PRIVATE_SETTINGS, slugify, eventStatus, getPath, setPath } from '../shared/cms.js'
 
 /* ───────────── helpers ───────────── */
@@ -828,6 +831,52 @@ route('GET', '/api/admin/audit', async ({ user }) => {
 })
 
 /* ───────────── dispatcher ───────────── */
+/* ── bulk email outbox ── */
+route('GET', '/api/admin/outbox', async ({ user }) => {
+    requireRole(user, 'editor')
+    const items = await getDb().all('SELECT id, kind, label, subject, total, cursor, sent, failed, status, created_by, created_at, updated_at FROM email_campaigns ORDER BY id DESC LIMIT 100')
+    return { items, quota: await quotaStatus() }
+})
+
+route('POST', '/api/admin/outbox/process', async ({ user }) => {
+    requireRole(user, 'editor')
+    return { ...(await drainCampaigns(14_000)), quota: await quotaStatus() }
+})
+
+route('POST', '/api/admin/outbox/:id/cancel', async ({ user, params }) => {
+    requireRole(user, 'editor')
+    await getDb().run("UPDATE email_campaigns SET status = 'cancelled', updated_at = datetime('now') WHERE id = ? AND status = 'queued'", [Number(params.id)])
+    await audit(user, 'cancel', 'email-campaign', params.id)
+    return { ok: true }
+})
+
+route('POST', '/api/admin/outbox/:id/retry', async ({ user, params }) => {
+    requireRole(user, 'editor')
+    const c = await getDb().first('SELECT * FROM email_campaigns WHERE id = ?', [Number(params.id)])
+    if (!c) fail(404, 'Mail-out not found.')
+    const failedEmails = new Set(parseJson(c.failures, []).map(f => f.email))
+    const recipients = parseJson(c.recipients, []).filter(r => failedEmails.has(r.email))
+    const queued = await createCampaign({ kind: c.kind, label: `Retry of #${c.id}`, subject: c.subject, body: c.body, recipients, user })
+    await getDb().run("UPDATE email_campaigns SET failures = '[]' WHERE id = ?", [c.id])
+    return { queued: [queued] }
+})
+
+route('PUT', '/api/admin/outbox/limits', async ({ user, body }) => {
+    requireRole(user, 'admin')
+    const dailyLimit = await setDailyLimit(body.dailyLimit)
+    await audit(user, 'update', 'settings', 'mail_limits', `daily limit ${dailyLimit}`)
+    return { quota: await quotaStatus() }
+})
+
+/* Daily Vercel cron (vercel.json) keeps long mail-outs moving when nobody has the Outbox open. */
+route('GET', '/api/cron/outbox', async ({ req }) => {
+    if (!process.env.CRON_SECRET || req.headers.authorization !== `Bearer ${process.env.CRON_SECRET}`) fail(401, 'Unauthorized')
+    return drainCampaigns(45_000)
+})
+
+installRecruitment({ route, requireRole, audit, loadSettings })
+installPortals({ route, requireRole, audit, loadSettings, releaseImages, imageUrls })
+
 export async function handle(req, res, pathOverride) {
     const url = new URL(req.url, 'http://local')
     let pathname = pathOverride || url.pathname

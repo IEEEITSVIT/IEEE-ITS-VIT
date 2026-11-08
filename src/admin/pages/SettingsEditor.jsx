@@ -7,7 +7,7 @@ import { PageTitle, Spinner, useToast } from '../ui'
 import { PreviewFrame } from '../Preview'
 import Icon from '../icons'
 
-const PREVIEW = { home: '/', pages: '/blogs', site: '/', seo: '/', appearance: '/', merch: '/merch', blogs: '/blogs', vlogs: '/vlogs', webteam: '/web-team', games: '/games' }
+const PREVIEW = { home: '/', pages: '/blogs', site: '/', seo: '/', appearance: '/', merch: '/merch', blogs: '/blogs', vlogs: '/vlogs', webteam: '/web-team', games: '/games', recruitment: '/recruitment', recruitment_mail: '/recruitment' }
 
 export default function SettingsEditor({ settingKey }) {
     const form = SETTINGS_FORMS[settingKey]
