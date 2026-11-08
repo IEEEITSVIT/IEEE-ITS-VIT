@@ -277,7 +277,9 @@ export function installRecruitment({ route, requireRole, audit, loadSettings }) 
                 if (doms.length) {
                     selected.push({ email: p.email, vars: { name: first(p.name), domains: doms.map(d => d.title).join(', '),
                         whatsapp: doms.map(d => `${d.title}: ${d.whatsapp_link || '(link will be shared soon)'}`).join('\n') } })
-                } else if (body.includeNotSelected !== false) {
+                } else if (body.includeNotSelected !== false && (body.includeUndecided || p.apps.every(a => a.status === 'not_selected'))) {
+                    // By default only people explicitly marked "Not selected" everywhere get the thank-you note,
+                    // so nobody still waiting for an interview is told they were not selected.
                     notSelected.push({ email: p.email, vars: { name: first(p.name), domains: p.apps.map(a => byId[a.domain_id]?.title).filter(Boolean).join(', ') } })
                 } else continue
                 appIds.push(...p.apps.map(a => a.id))

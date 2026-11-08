@@ -183,7 +183,7 @@ function EmailsTab({ domains, apps }) {
     const [tpl, setTpl] = useState(null)
     const [aud, setAud] = useState({ domainIds: [], statuses: [], pendingTestOnly: false })
     const [msg, setMsg] = useState({ subject: '', body: '' })
-    const [opts, setOpts] = useState({ includeNotSelected: true, onlyNew: true })
+    const [opts, setOpts] = useState({ includeNotSelected: true, includeUndecided: false, onlyNew: true })
     useEffect(() => { api.get('/admin/settings').then(r => { setTpl(r.settings.recruitment_mail); setMsg({ subject: r.settings.recruitment_mail?.reminderSubject || '', body: r.settings.recruitment_mail?.reminderBody || '' }) }).catch(() => {}) }, [])
 
     const people = useMemo(() => {
@@ -193,7 +193,8 @@ function EmailsTab({ domains, apps }) {
     }, [apps])
     const pending = people.filter(p => !opts.onlyNew || p.some(a => !a.result_mailed_at))
     const nSelected = pending.filter(p => p.some(a => a.status === 'selected')).length
-    const nNot = opts.includeNotSelected ? pending.length - nSelected : 0
+    const nNot = opts.includeNotSelected ? pending.filter(p => !p.some(a => a.status === 'selected') && (opts.includeUndecided || p.every(a => a.status === 'not_selected'))).length : 0
+    const nWaiting = pending.filter(p => !p.some(a => a.status === 'selected') && !p.every(a => a.status === 'not_selected')).length
     const audience = people.filter(p => p.some(a => (!aud.domainIds.length || aud.domainIds.includes(a.domain_id)) && (!aud.statuses.length || aud.statuses.includes(a.status)) && (!aud.pendingTestOnly || !a.test_submitted_at))).length
     const missingLinks = domains.filter(d => !d.whatsapp_link && apps.some(a => a.domain_id === d.id && a.status === 'selected'))
 
@@ -209,6 +210,7 @@ function EmailsTab({ domains, apps }) {
                 <p className="adm-hint">Selected candidates get one email listing every domain they were selected for, with each domain's WhatsApp group link. Everyone else gets a kind "thank you" message. Edit the wording in <Link to="/admin/s/recruitment_mail">Recruitment Emails</Link>.</p>
                 {missingLinks.length > 0 && <p className="adm-hint warn">Add WhatsApp links for: {missingLinks.map(d => d.title).join(', ')} (Domains & tests).</p>}
                 <Switch checked={opts.includeNotSelected} onChange={v => setOpts(o => ({ ...o, includeNotSelected: v }))} label="Also email candidates who were not selected" />
+                {opts.includeNotSelected && <Switch checked={opts.includeUndecided} onChange={v => setOpts(o => ({ ...o, includeUndecided: v }))} label={`Also treat ${nWaiting} undecided applicant${nWaiting === 1 ? '' : 's'} (Applied / Test submitted / Interview) as not selected`} />}
                 <Switch checked={opts.onlyNew} onChange={v => setOpts(o => ({ ...o, onlyNew: v }))} label="Skip people who were already emailed their result" />
                 <p><b>{nSelected}</b> selected · <b>{nNot}</b> not selected will be emailed.</p>
                 <button className="adm-btn primary" disabled={!nSelected && !nNot} onClick={() => send({ kind: 'results', ...opts })}><Icon name="send" size={16} /> Queue result emails</button>
