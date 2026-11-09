@@ -653,6 +653,9 @@ img, video { max-width: 100%; }
 .rec-option.on { border-color: var(--accent); background: var(--surface-2); }
 .rec-option input { accent-color: var(--accent); width: 18px; height: 18px; }
 
+.name-status { margin: -6px 0 0; font-size: .82rem; }
+.name-status.ok { color: var(--ok); }
+.name-status.err { color: var(--danger); }
 .portal-code { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px 14px; border: 1px dashed var(--line); border-radius: var(--radius-sm); }
 .portal-code span { font-family: var(--font-mono); font-size: .7rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
 .portal-code b { font-family: var(--font-mono); font-size: 1.3rem; letter-spacing: .25em; }

@@ -164,13 +164,28 @@ export function installPortals({ route, requireRole, audit, loadSettings, releas
         return p
     }
 
-    async function createTeam(p, user, name) {
+    const teamName = v => str(v, 60).replace(/\s+/g, ' ').trim()
+    const nameTaken = (p, name) => db().first('SELECT id FROM ev_teams WHERE portal_id = ? AND lower(name) = lower(?)', [p.id, name])
+    const isNameClash = e => /idx_ev_teams_name|lower\(name\)/.test(e.message)
+
+    /**
+     * Team names are unique per event (enforced by the idx_ev_teams_name index, so two people creating the
+     * same name at the same moment cannot both succeed). Solo entries use the person's name, so a clash there
+     * gets the registration number (or a counter) added instead of being refused.
+     */
+    async function createTeam(p, user, name, { solo } = {}) {
         let teamId = null
-        for (let i = 0; i < 5 && !teamId; i++) {
-            try { teamId = (await db().run('INSERT INTO ev_teams (portal_id, name, code, lead_user_id) VALUES (?, ?, ?, ?)', [p.id, name, newCode(), user.id])).lastId }
-            catch (e) { if (!/UNIQUE/.test(e.message)) throw e } // join code collision — try another
+        let candidate = name
+        for (let i = 0; i < 8 && !teamId; i++) {
+            try { teamId = (await db().run('INSERT INTO ev_teams (portal_id, name, code, lead_user_id) VALUES (?, ?, ?, ?)', [p.id, candidate, newCode(), user.id])).lastId }
+            catch (e) {
+                if (!/UNIQUE/.test(e.message)) throw e
+                if (!isNameClash(e)) continue // join code collision — try another code
+                if (!solo) fail(409, `The team name "${name}" is already taken in this event — choose another.`)
+                candidate = i === 0 && user.reg_no ? `${name} (${user.reg_no})` : `${name} (${i + 2})`
+            }
         }
-        if (!teamId) fail(500, 'Could not create a team code, please try again.')
+        if (!teamId) fail(500, 'Could not register right now, please try again.')
         try { await db().run("INSERT INTO ev_members (portal_id, team_id, user_id, role) VALUES (?, ?, ?, 'lead')", [p.id, teamId, user.id]) }
         catch (e) {
             await db().run('DELETE FROM ev_teams WHERE id = ?', [teamId])
@@ -183,11 +198,20 @@ export function installPortals({ route, requireRole, audit, loadSettings, releas
     route('POST', '/api/portals/:slug/register', async ({ user, params, body }) => {
         const p = await participant(params.slug, user)
         if (await membership(p, user)) fail(409, 'You are already registered for this event.')
-        const name = p.config.team.mode === 'solo' ? user.name : str(body.teamName, 60)
-        if (p.config.team.mode === 'team' && name.length < 2) fail(400, 'Enter a team name.')
-        if (p.config.team.mode === 'team' && await db().first('SELECT id FROM ev_teams WHERE portal_id = ? AND lower(name) = lower(?)', [p.id, name])) fail(409, 'That team name is taken — choose another.')
-        const teamId = await createTeam(p, user, name)
+        const solo = p.config.team.mode === 'solo'
+        const name = teamName(solo ? user.name : body.teamName)
+        if (!solo && name.length < 2) fail(400, 'Enter a team name (at least 2 characters).')
+        if (!solo && await nameTaken(p, name)) fail(409, `The team name "${name}" is already taken in this event — choose another.`)
+        const teamId = await createTeam(p, user, name, { solo })
         return { team: await teamView(p, teamId) }
+    })
+
+    /* Live check while a team lead types a name. */
+    route('GET', '/api/portals/:slug/team-name', async ({ params, query }) => {
+        const p = await bySlug(params.slug)
+        if (!p || p.status === 'draft') fail(404, 'Event not found.')
+        const name = teamName(query.get('name'))
+        return { name, available: name.length >= 2 && !(await nameTaken(p, name)) }
     })
 
     route('POST', '/api/portals/:slug/join', async ({ user, params, body }) => {

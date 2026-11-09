@@ -285,6 +285,8 @@ CREATE TABLE IF NOT EXISTS ev_teams (
     UNIQUE (portal_id, code)
 );
 CREATE INDEX IF NOT EXISTS idx_ev_teams_portal ON ev_teams (portal_id, round);
+-- Team names are unique within an event, ignoring capitals (names are stored with single spaces).
+CREATE UNIQUE INDEX IF NOT EXISTS idx_ev_teams_name ON ev_teams (portal_id, lower(name));
 
 CREATE TABLE IF NOT EXISTS ev_members (
     id           INTEGER PRIMARY KEY AUTOINCREMENT,

@@ -51,6 +51,16 @@ export default function EventPortal() {
     const [busy, setBusy] = useState(false)
 
     const load = useCallback(() => api.get(`/portals/${slug}`).then(setData).catch(e => setErr(e.message)), [slug])
+    // Team names are unique within the event: check while the lead types.
+    const [nameCheck, setNameCheck] = useState(null) // { name, available }
+    useEffect(() => {
+        const name = form.teamName.replace(/\s+/g, ' ').trim()
+        if (name.length < 2) return
+        const t = setTimeout(() => api.get(`/portals/${slug}/team-name?name=${encodeURIComponent(name)}`).then(setNameCheck).catch(() => {}), 450)
+        return () => clearTimeout(t)
+    }, [form.teamName, slug])
+    const typed = form.teamName.replace(/\s+/g, ' ').trim()
+    const nameStatus = typed.length < 2 || nameCheck?.name !== typed ? null : nameCheck.available
     useEffect(() => { if (!authLoading) load() }, [authLoading, user?.mobile, user?.regNo, load])
 
     const act = async (path, body, done) => {
@@ -113,8 +123,9 @@ export default function EventPortal() {
                                     <form className="form boxed" onSubmit={e => { e.preventDefault(); act('register', { teamName: form.teamName }, 'Team created — share the code with your team mates.') }}>
                                         <span className="label">Create a team</span>
                                         <p className="muted small" style={{ margin: 0 }}>You become the team lead and get a code to share.</p>
-                                        <label className="field"><span>Team name</span><input value={form.teamName} onChange={e => setForm(f => ({ ...f, teamName: e.target.value }))} required minLength={2} maxLength={60} /></label>
-                                        <button className="btn solid" disabled={busy} style={{ alignSelf: 'flex-start' }}>Create team</button>
+                                        <label className="field"><span>Team name</span><input value={form.teamName} onChange={e => setForm(f => ({ ...f, teamName: e.target.value }))} required minLength={2} maxLength={60} aria-describedby="team-name-status" /></label>
+                                        {nameStatus !== null && <p id="team-name-status" className={`name-status ${nameStatus ? 'ok' : 'err'}`} role="status">{nameStatus ? `"${typed}" is available` : `"${typed}" is already taken in this event`}</p>}
+                                        <button className="btn solid" disabled={busy || nameStatus === false} style={{ alignSelf: 'flex-start' }}>Create team</button>
                                     </form>
                                     <form className="form boxed" onSubmit={e => { e.preventDefault(); act('join', { code: form.code }, 'You joined the team.') }}>
                                         <span className="label">Join a team</span>
