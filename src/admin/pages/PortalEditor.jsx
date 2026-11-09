@@ -6,9 +6,9 @@ import { downloadXlsx, fmtIst, saveBlob } from '../../lib/xlsx'
 import { Field } from '../fields'
 import { PageTitle, Badge, Empty, Spinner, Switch, useToast, useConfirm, DateTimeInput, queuedText } from '../ui'
 import Icon from '../icons'
+import { CertDesigner, ListEditor } from '../CertDesigner'
 
 const TABS = [['setup', 'Setup'], ['people', 'Participants'], ['judging', 'Judging & results'], ['emails', 'Emails'], ['certificates', 'Certificates'], ['export', 'Export & clean-up']]
-const CERT_KEYS = [['name', 'Participant name'], ['team', 'Team name'], ['event', 'Event title'], ['rank', 'Rank'], ['date', 'Date'], ['regNo', 'Registration no.'], ['custom', 'Custom text']]
 const AUDIENCES = [['all', 'Everyone registered'], ['submitted', 'Teams that submitted'], ['not_submitted', 'Teams that have not submitted'], ['qualified', 'Qualified for a round'], ['not_qualified', 'Did not qualify for a round'], ['winners', 'Winners']]
 const TEMPLATE_FOR = { all: 'all', submitted: 'all', not_submitted: 'all', qualified: 'qualified', not_qualified: 'notQualified', winners: 'winners' }
 
@@ -25,21 +25,6 @@ function leaderboard(data, round, criteria) {
     }).sort((a, b) => (b.total ?? -1) - (a.total ?? -1))
 }
 const f1 = v => (v == null ? '—' : Number(v).toFixed(1))
-
-/* ---------- small list editors ---------- */
-function ListEditor({ items, onChange, render, blank, max, addLabel }) {
-    return (
-        <div className="adm-stack">
-            {items.map((it, i) => (
-                <div key={i} className="adm-row adm-listrow">
-                    {render(it, patch => onChange(items.map((x, k) => (k === i ? { ...x, ...patch } : x))))}
-                    <button type="button" className="adm-icon-btn" onClick={() => onChange(items.filter((_, k) => k !== i))} aria-label="Remove"><Icon name="trash" size={15} /></button>
-                </div>
-            ))}
-            {items.length < max && <button type="button" className="adm-btn small" style={{ alignSelf: 'flex-start' }} onClick={() => onChange([...items, blank(items.length)])}><Icon name="plus" size={14} /> {addLabel}</button>}
-        </div>
-    )
-}
 
 /* ---------- Setup ---------- */
 function SetupTab({ portal, setPortal }) {
@@ -289,51 +274,6 @@ function EmailsTab({ portal, data, setPortal, savePortal }) {
 }
 
 /* ---------- Certificates ---------- */
-function CertDesigner({ tpl, onChange, sample }) {
-    const box = useRef(null)
-    const [w, setW] = useState(600)
-    useEffect(() => {
-        const ro = new ResizeObserver(([e]) => setW(e.contentRect.width))
-        if (box.current) ro.observe(box.current)
-        return () => ro.disconnect()
-    }, [])
-    const setField = (i, patch) => onChange({ ...tpl, fields: tpl.fields.map((f, k) => (k === i ? { ...f, ...patch } : f)) })
-    const drag = (i, e) => {
-        const r = box.current.getBoundingClientRect()
-        const move = ev => setField(i, { x: Math.round(Math.min(100, Math.max(0, ((ev.clientX - r.left) / r.width) * 100))), y: Math.round(Math.min(100, Math.max(0, ((ev.clientY - r.top) / r.height) * 100))) })
-        const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up) }
-        window.addEventListener('pointermove', move); window.addEventListener('pointerup', up)
-        e.preventDefault()
-    }
-    const text = f => (f.text ? f.text.replace(/\{\{\s*(\w+)\s*\}\}/g, (_, k) => sample[k] ?? '') : sample[f.key] ?? '')
-    return (
-        <div className="adm-form">
-            <div className="adm-field"><span>Template image (PNG or JPG, landscape A4 works best; keep it under 1 MB)</span><Field field={{ type: 'image' }} value={tpl.image} onChange={image => onChange({ ...tpl, image })} /></div>
-            {tpl.image && (
-                <div ref={box} className="adm-cert-canvas">
-                    <img src={tpl.image} alt="" draggable={false} />
-                    {tpl.fields.map((f, i) => (
-                        <span key={i} onPointerDown={e => drag(i, e)} title="Drag to position"
-                            style={{ left: `${f.x}%`, top: `${f.y}%`, fontSize: (f.size * w) / 842, color: f.color, fontWeight: f.bold ? 700 : 400, transform: `translate(${f.align === 'center' ? '-50%' : f.align === 'right' ? '-100%' : '0'}, -50%)` }}>
-                            {text(f) || `[${f.key}]`}
-                        </span>
-                    ))}
-                </div>
-            )}
-            <ListEditor items={tpl.fields} max={8} addLabel="Add text" onChange={fields => onChange({ ...tpl, fields })}
-                blank={() => ({ key: 'custom', text: 'Certificate of Participation', x: 50, y: 30, size: 30, color: '#111111', align: 'center', bold: true })}
-                render={(f, up) => <>
-                    <select className="adm-input" value={f.key} onChange={e => up({ key: e.target.value })} style={{ maxWidth: 150 }}>{CERT_KEYS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
-                    <input className="adm-input" value={f.text || ''} onChange={e => up({ text: e.target.value })} placeholder={f.key === 'custom' ? 'Text, e.g. Rank {{rank}}' : 'Optional text with {{name}}'} />
-                    <input className="adm-input" type="number" min="6" max="120" value={f.size} onChange={e => up({ size: Number(e.target.value) })} style={{ maxWidth: 70 }} title="Font size" />
-                    <input type="color" className="adm-swatch" value={f.color} onChange={e => up({ color: e.target.value })} title="Colour" />
-                    <select className="adm-input" value={f.align} onChange={e => up({ align: e.target.value })} style={{ maxWidth: 96 }}><option value="left">Left</option><option value="center">Centre</option><option value="right">Right</option></select>
-                    <Switch checked={f.bold} onChange={v => up({ bold: v })} label="Bold" />
-                </>} />
-        </div>
-    )
-}
-
 function CertificatesTab({ portal, data, setPortal, savePortal, reload }) {
     const toast = useToast()
     const c = portal.config

@@ -20,6 +20,7 @@ import RecruitmentAdmin from './pages/RecruitmentAdmin'
 import PortalsAdmin from './pages/PortalsAdmin'
 import PortalEditor from './pages/PortalEditor'
 import Outbox from './pages/Outbox'
+import CertificatesTool from './pages/CertificatesTool'
 import Icon from './icons'
 import './admin.css'
 
@@ -41,6 +42,7 @@ const NAV = [
         group: 'Recruitment & Events', items: [
             { to: '/admin/recruitment', label: 'Recruitment', icon: 'briefcase' },
             { to: '/admin/portals', label: 'Event Portals', icon: 'trophy' },
+            { to: '/admin/certificates', label: 'Certificates', icon: 'award' },
             { to: '/admin/outbox', label: 'Email Outbox', icon: 'send' },
             { to: '/admin/s/recruitment_mail', label: 'Recruitment Emails', icon: 'mail', admin: true },
         ],
@@ -177,6 +179,7 @@ export default function AdminApp() {
                                     <Route path="/admin/portals" element={<PortalsAdmin />} />
                                     <Route path="/admin/portals/:id" element={<PortalEditor />} />
                                     <Route path="/admin/outbox" element={<Outbox />} />
+                                    <Route path="/admin/certificates" element={<CertificatesTool />} />
                                     <Route path="/admin/events" element={<EventsManager />} />
                                     <Route path="/admin/moments" element={<MomentsManager />} />
                                     <Route path="/admin/media" element={<MediaLibrary />} />

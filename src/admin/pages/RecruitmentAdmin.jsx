@@ -4,6 +4,7 @@ import { api } from '../../lib/api'
 import { useAuth } from '../../hooks/useAuth'
 import { useSite } from '../../context/SiteContext'
 import { downloadXlsx, fmtIst } from '../../lib/xlsx'
+import { readSheet, mapHeaders } from '../../lib/sheet'
 import { Drawer, Modal, PageTitle, Badge, Empty, Spinner, Switch, useToast, useConfirm, DateTimeInput, fmtLocal, queuedText } from '../ui'
 import Icon from '../icons'
 
@@ -118,7 +119,7 @@ function ApplicantDrawer({ id, onClose, onChanged }) {
                 <div className="adm-form">
                     <div className="adm-panel adm-kv">
                         <span>Email</span><b>{a.email}</b><span>Reg no</span><b>{a.reg_no || '—'}</b><span>Mobile</span><b>{a.mobile || '—'}</b>
-                        <span>Status</span><b><Badge tone={TONE[a.status]}>{STATUS[a.status]}</Badge>{a.source === 'direct' && <Badge tone="accent">Added directly</Badge>}</b>
+                        <span>Status</span><b><Badge tone={TONE[a.status]}>{STATUS[a.status]}</Badge>{a.source !== 'portal' && <Badge tone="accent">{a.source === 'import' ? 'Imported from Excel' : 'Added directly'}</Badge>}</b>
                         <span>Test</span><b>{a.test_submitted_at ? `Submitted ${fmtLocal(a.test_submitted_at)}` : a.test_started_at ? 'Started, not submitted' : 'Not taken'}</b>
                         <span>Proctoring</span><b>{a.tab_switches ? <Badge tone="warn">Left the test {a.tab_switches} time{a.tab_switches > 1 ? 's' : ''}</Badge> : 'No issues recorded'}</b>
                         <span>Auto score</span><b>{a.auto_score ?? '—'}{a.max_score ? ` / ${a.max_score}` : ''}</b>
@@ -172,6 +173,102 @@ function DirectAdd({ domains, onClose, onDone }) {
                 <p className="adm-hint">If they have no account yet, one is created; they set a password with "Forgot password".</p>
                 <div className="adm-row end"><button type="button" className="adm-btn ghost" onClick={onClose}>Cancel</button><button className="adm-btn primary" disabled={!f.domainIds.length}>Add and select</button></div>
             </form>
+        </Modal>
+    )
+}
+
+/* ---------- import a manually made selection list ---------- */
+const FIELDS = [['name', 'Name'], ['email', 'Email *'], ['regNo', 'Registration no.'], ['mobile', 'Mobile'], ['domain', 'Domain(s)'], ['status', 'Status']]
+const parseStatus = v => (/not|reject|^no$|fail/i.test(v) ? 'not_selected' : /interview|shortlist/i.test(v) ? 'interview' : /select|^yes$|accept|pass/i.test(v) ? 'selected' : null)
+const splitDomains = v => String(v || '').split(/[,;|\n]+/).map(x => x.trim()).filter(Boolean)
+
+function ImportSelections({ domains, onClose, onDone }) {
+    const toast = useToast()
+    const [sheet, setSheet] = useState(null)
+    const [map, setMap] = useState({})
+    const [fixedDomains, setFixedDomains] = useState([])
+    const [fixedStatus, setFixedStatus] = useState('selected')
+    const [final, setFinal] = useState(false)
+    const [busy, setBusy] = useState(null)
+    const [result, setResult] = useState(null)
+
+    const load = async file => {
+        if (!file) return
+        try { const sh = await readSheet(file); setSheet({ ...sh, file: file.name }); setMap(mapHeaders(sh.headers)); setResult(null) } catch (e) { toast(e.message, 'error') }
+    }
+    const rows = useMemo(() => (sheet?.rows || []).map((r, i) => ({
+        line: i + 2, name: r[map.name] || '', email: r[map.email] || '', regNo: r[map.regNo] || '', mobile: r[map.mobile] || '',
+        domains: map.domain ? splitDomains(r[map.domain]) : fixedDomains.map(id => domains.find(d => d.id === id)?.title),
+        status: (map.status && parseStatus(r[map.status])) || fixedStatus,
+    })).filter(r => r.email || r.name), [sheet, map, fixedDomains, fixedStatus, domains])
+
+    const run = async () => {
+        setBusy({ done: 0, total: rows.length })
+        const sum = { people: 0, selections: 0, created: 0, skipped: [], unknownDomains: new Set(), listed: {} }
+        try {
+            for (let i = 0; i < rows.length; i += 250) {
+                const r = await api.post('/admin/recruitment/import', { rows: rows.slice(i, i + 250), note: `Imported from ${sheet.file}` })
+                sum.people += r.people; sum.selections += r.selections; sum.created += r.created; sum.skipped.push(...r.skipped)
+                r.unknownDomains.forEach(d => sum.unknownDomains.add(d))
+                for (const [d, list] of Object.entries(r.listed)) (sum.listed[d] ||= []).push(...list)
+                setBusy({ done: Math.min(rows.length, i + 250), total: rows.length })
+            }
+            if (final && Object.keys(sum.listed).length) sum.changed = (await api.post('/admin/recruitment/import/finalize', { listed: sum.listed })).changed
+            setResult({ ...sum, unknownDomains: [...sum.unknownDomains] })
+            toast(`Imported ${sum.selections} selections — recorded in the audit log`)
+            onDone()
+        } catch (e) { toast(e.message, 'error') }
+        setBusy(null)
+    }
+    const template = () => downloadXlsx('selection-list-template.xlsx', [{ name: 'Selections', rows: [['Name', 'Email', 'Reg no', 'Mobile', 'Domain', 'Status'], ['Aditi Sharma', 'aditi.sharma2024@vitstudent.ac.in', '24BCE0001', '9876543210', domains.slice(0, 2).map(d => d.title).join(', ') || 'Technical', 'Selected']] }])
+
+    return (
+        <Modal open onClose={onClose} title="Import selections from Excel" wide>
+            <div className="adm-form">
+                <p className="adm-hint">Use this when selections were made outside the portal (offline interviews, a shared sheet). One row per person; several domains in one cell are separated by commas. People without an account get one (they set a password with "Forgot password"). <button type="button" className="adm-link" onClick={template}>Download a template</button></p>
+                <input type="file" accept=".xlsx,.csv" onChange={e => load(e.target.files[0])} />
+                {sheet && <>
+                    <div className="adm-grid-2">
+                        {FIELDS.map(([k, l]) => (
+                            <label key={k} className="adm-field"><span>{l}</span>
+                                <select className="adm-input" value={map[k] || ''} onChange={e => setMap(m => ({ ...m, [k]: e.target.value || undefined }))}>
+                                    <option value="">— not in sheet —</option>{sheet.headers.map(h => <option key={h} value={h}>{h}</option>)}
+                                </select>
+                            </label>
+                        ))}
+                    </div>
+                    {!map.domain && (
+                        <div className="adm-field"><span>No domain column — apply every row to</span>
+                            <div className="adm-row wrap">{domains.map(d => <label key={d.id} className="adm-chipcheck"><input type="checkbox" checked={fixedDomains.includes(d.id)} onChange={e => setFixedDomains(x => (e.target.checked ? [...x, d.id] : x.filter(i => i !== d.id)))} />{d.title}</label>)}</div>
+                        </div>
+                    )}
+                    {!map.status && (
+                        <label className="adm-field" style={{ maxWidth: 260 }}><span>Status for every row</span>
+                            <select className="adm-input" value={fixedStatus} onChange={e => setFixedStatus(e.target.value)}>{Object.entries(STATUS).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
+                        </label>
+                    )}
+                    <Switch checked={final} onChange={setFinal} label="This sheet is the final list — everyone else in these domains becomes Not selected" />
+                    <div className="adm-table-wrap">
+                        <table className="adm-table">
+                            <thead><tr><th>Row</th><th>Name</th><th>Email</th><th>Reg no</th><th>Domains</th><th>Status</th></tr></thead>
+                            <tbody>{rows.slice(0, 8).map(r => <tr key={r.line}><td>{r.line}</td><td>{r.name}</td><td>{r.email}</td><td>{r.regNo}</td><td>{r.domains.join(', ')}</td><td>{STATUS[r.status]}</td></tr>)}</tbody>
+                        </table>
+                    </div>
+                    <p className="adm-hint">{rows.length} rows in {sheet.file}{rows.length > 8 ? ' — showing the first 8' : ''}.</p>
+                </>}
+                {busy && <div><div className="adm-progress"><span style={{ width: `${(busy.done / busy.total) * 100}%` }} /></div><small>Importing {busy.done} / {busy.total}</small></div>}
+                {result && (
+                    <div className="adm-panel">
+                        <b>{result.selections} selections for {result.people} people</b> ({result.created} new accounts){result.changed !== undefined && <>, {result.changed} others marked Not selected</>}.
+                        {result.unknownDomains.length > 0 && <p className="adm-err">Unknown domains (rows skipped): {result.unknownDomains.join(', ')}</p>}
+                        {result.skipped.length > 0 && <p className="adm-hint">Skipped: {result.skipped.slice(0, 20).map(s => `row ${s.row} (${s.reason})`).join('; ')}{result.skipped.length > 20 ? '…' : ''}</p>}
+                    </div>
+                )}
+                <div className="adm-row end">
+                    <button type="button" className="adm-btn ghost" onClick={onClose}>{result ? 'Close' : 'Cancel'}</button>
+                    {!result && <button type="button" className="adm-btn primary" disabled={!rows.length || !map.email || (!map.domain && !fixedDomains.length) || !!busy} onClick={run}>Import {rows.length} rows</button>}
+                </div>
+            </div>
         </Modal>
     )
 }
@@ -284,6 +381,7 @@ export default function RecruitmentAdmin() {
     const [editing, setEditing] = useState(null)
     const [viewing, setViewing] = useState(null)
     const [direct, setDirect] = useState(false)
+    const [importing, setImporting] = useState(false)
     const [f, setF] = useState({ domain: '', status: '', min: '', q: '', sort: 'score' })
     const [sel, setSel] = useState([])
     const [topN, setTopN] = useState('')
@@ -337,6 +435,7 @@ export default function RecruitmentAdmin() {
         <>
             <PageTitle title="Recruitment" subtitle="Domains, tests, applicants, interviews and selections. A candidate can apply to and be selected for several domains.">
                 <button className="adm-btn" onClick={exportMaster} disabled={!apps.length}><Icon name="box" size={16} /> Master data (Excel)</button>
+                {isAdmin && <button className="adm-btn" onClick={() => setImporting(true)}><Icon name="upload" size={16} /> Import Excel</button>}
                 {isAdmin && <button className="adm-btn" onClick={() => setDirect(true)}><Icon name="plus" size={16} /> Add directly</button>}
                 {tab === 'domains' && <button className="adm-btn primary" onClick={() => setEditing(blankDomain())}><Icon name="plus" size={16} /> New domain</button>}
             </PageTitle>
@@ -375,7 +474,7 @@ export default function RecruitmentAdmin() {
                                             <td><button className="adm-link" onClick={() => setViewing(a.id)}><strong>{a.name}</strong></button><small className="adm-block">{a.email} · {a.mobile || 'no mobile'}</small></td>
                                             <td>{a.reg_no || '—'}</td>
                                             <td>{title[a.domain_id]}</td>
-                                            <td><Badge tone={TONE[a.status]}>{STATUS[a.status]}</Badge>{a.source === 'direct' && <small className="adm-block">added directly</small>}</td>
+                                            <td><Badge tone={TONE[a.status]}>{STATUS[a.status]}</Badge>{a.source !== 'portal' && <small className="adm-block">{a.source === 'import' ? 'imported from Excel' : 'added directly'}</small>}</td>
                                             <td>{scoreText(a)}</td>
                                             <td>{a.tab_switches > 0 && <Badge tone="warn">{a.tab_switches} tab switch{a.tab_switches > 1 ? 'es' : ''}</Badge>}</td>
                                             <td><small>{fmtLocal(a.created_at.includes('T') ? a.created_at : a.created_at.replace(' ', 'T') + 'Z')}</small></td>
@@ -415,6 +514,7 @@ export default function RecruitmentAdmin() {
 
             {editing && <DomainDrawer domain={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); load() }} />}
             {viewing && <ApplicantDrawer id={viewing} onClose={() => setViewing(null)} onChanged={load} />}
+            {importing && <ImportSelections domains={domains} onClose={() => setImporting(false)} onDone={load} />}
             {direct && <DirectAdd domains={domains} onClose={() => setDirect(false)} onDone={() => { setDirect(false); load() }} />}
         </>
     )

@@ -37,6 +37,19 @@ function publicDomain(d) {
     }
 }
 
+/** SQL literal for bulk statements (sheets can hold 1,500 rows; bound parameters are capped at 100 per query on D1). */
+const lit = v => (v == null || v === '' ? 'NULL' : typeof v === 'number' ? String(Number(v) || 0) : `'${String(v).split(String.fromCharCode(0)).join('').replace(/'/g, "''")}'`)
+/** Runs statements in groups that stay well under D1's per-request size limit. */
+async function execBatches(statements) {
+    let batch = []
+    let size = 0
+    for (const st of statements) {
+        if (size + st.length > 80_000 && batch.length) { await getDb().exec(batch.join(';\n')); batch = []; size = 0 }
+        batch.push(st); size += st.length + 2
+    }
+    if (batch.length) await getDb().exec(batch.join(';\n'))
+}
+
 const scoreOf = a => (a.auto_score ?? 0) + (a.manual_score ?? 0)
 
 export function installRecruitment({ route, requireRole, audit, loadSettings }) {
@@ -312,6 +325,67 @@ export function installRecruitment({ route, requireRole, audit, loadSettings }) 
         queued.push(await createCampaign({ kind: `recruitment-${body.kind === 'custom' ? 'message' : 'reminder'}`, label: `${body.kind === 'custom' ? 'Message' : 'Reminder'} to ${recipients.length} applicants`, subject, body: text, recipients, user }))
         await audit(user, 'email', 'recruitment', '', `${body.kind} queued for ${recipients.length} applicants`)
         return { queued }
+    })
+
+    /*
+     * Import a manually made list from Excel: each row is a person and the domain(s) they were selected for
+     * (or another status). The admin's browser sends the sheet in chunks of a few hundred rows.
+     */
+    route('POST', '/api/admin/recruitment/import', async ({ user, body }) => {
+        requireRole(user, 'admin')
+        const domains = (await db().all('SELECT id, title FROM rec_domains')).map(d => ({ ...d, key: d.title.toLowerCase().replace(/[^a-z0-9]/g, '') }))
+        const findDomain = v => {
+            const k = String(v).toLowerCase().replace(/[^a-z0-9]/g, '')
+            return k && (domains.find(d => d.key === k || String(d.id) === k) || domains.find(d => d.key.startsWith(k) || k.startsWith(d.key)))
+        }
+        const rows = (Array.isArray(body.rows) ? body.rows : []).slice(0, 500)
+        const skipped = [], unknown = new Set(), picks = []
+        rows.forEach((r, i) => {
+            const email = str(r.email, 200).toLowerCase()
+            if (!isEmail(email)) return skipped.push({ row: r.line ?? i + 2, reason: `invalid email "${str(r.email, 60)}"` })
+            const status = STATUSES.includes(r.status) ? r.status : 'selected'
+            const ids = []
+            for (const name of (Array.isArray(r.domains) ? r.domains : [])) {
+                const d = findDomain(name)
+                if (d) ids.push(d.id); else if (String(name).trim()) unknown.add(String(name).trim())
+            }
+            if (!ids.length) return skipped.push({ row: r.line ?? i + 2, reason: 'no known domain' })
+            picks.push({ email, name: str(r.name, 120) || email, regNo: str(r.regNo, 12).toUpperCase().replace(/\s/g, ''), mobile: str(r.mobile, 20).replace(/\D/g, '').slice(-10), status, ids: [...new Set(ids)] })
+        })
+        const emails = [...new Set(picks.map(p => p.email))]
+        const ids = new Map()
+        for (const part of chunks(emails)) for (const u of await db().all(`SELECT id, email FROM users WHERE email IN (${part.map(() => '?').join(',')})`, part)) ids.set(u.email.toLowerCase(), u.id)
+        const fresh = picks.filter((p, i, a) => !ids.has(p.email) && a.findIndex(x => x.email === p.email) === i)
+        // New people get an account without a password; they set one with "Forgot password".
+        if (fresh.length) await execBatches(chunks(fresh, 200).map(part => `INSERT OR IGNORE INTO users (name, email, password_hash, mobile, reg_no, member_type) VALUES ${part.map(p =>
+            `(${lit(p.name)}, ${lit(p.email)}, 'invited', ${lit(p.mobile)}, ${lit(p.regNo)}, ${lit(isVit(p.email) ? 'VIT Student' : 'External Member')})`).join(', ')}`))
+        if (fresh.length) for (const part of chunks(fresh.map(p => p.email))) for (const u of await db().all(`SELECT id, email FROM users WHERE email IN (${part.map(() => '?').join(',')})`, part)) ids.set(u.email.toLowerCase(), u.id)
+        const updates = picks.filter(p => !fresh.includes(p) && (p.mobile || p.regNo)).map(p =>
+            `UPDATE users SET mobile = COALESCE(${lit(p.mobile)}, mobile), reg_no = COALESCE(${lit(p.regNo)}, reg_no) WHERE id = ${ids.get(p.email)}`)
+        const note = str(body.note, 300) || 'Imported from Excel'
+        const values = picks.flatMap(p => p.ids.map(d => `(${ids.get(p.email)}, ${d}, ${lit(p.status)}, 'import', ${lit(note)})`))
+        await execBatches([...updates, ...chunks(values, 300).map(part => `INSERT INTO rec_applications (user_id, domain_id, status, source, note) VALUES ${part.join(', ')}
+            ON CONFLICT(user_id, domain_id) DO UPDATE SET status = excluded.status, source = CASE WHEN rec_applications.source = 'portal' THEN 'portal' ELSE 'import' END, note = excluded.note, updated_at = datetime('now')`)])
+        await audit(user, 'import', 'recruitment', '', `Excel import: ${values.length} selections for ${picks.length} people (${fresh.length} new accounts), ${skipped.length} rows skipped`)
+        const listed = {}
+        for (const p of picks) for (const d of p.ids) (listed[d] ||= []).push(p.email)
+        return { people: picks.length, selections: values.length, created: fresh.length, skipped, unknownDomains: [...unknown], listed }
+    })
+
+    /* After an import marked as the final list: everyone not on the sheet for a domain becomes "not selected" there. */
+    route('POST', '/api/admin/recruitment/import/finalize', async ({ user, body }) => {
+        requireRole(user, 'admin')
+        const listed = body.listed && typeof body.listed === 'object' ? body.listed : {}
+        let changed = 0
+        for (const [domainId, list] of Object.entries(listed).slice(0, 50)) {
+            const keep = [...new Set((Array.isArray(list) ? list : []).map(e => str(e, 200).toLowerCase()).filter(isEmail))].slice(0, 5000)
+            if (!Number(domainId) || !keep.length) continue
+            const r = await db().run(`UPDATE rec_applications SET status = 'not_selected', updated_at = datetime('now') WHERE domain_id = ${Number(domainId)}
+                AND status != 'not_selected' AND user_id NOT IN (SELECT id FROM users WHERE email IN (${keep.map(lit).join(', ')}))`)
+            changed += r.changes
+        }
+        await audit(user, 'import', 'recruitment', '', `Excel list set as final for ${Object.keys(listed).length} domain(s): ${changed} others marked not selected`)
+        return { changed }
     })
 
     route('DELETE', '/api/admin/recruitment/applications', async ({ user, body }) => {

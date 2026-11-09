@@ -48,8 +48,9 @@ function cleanCert(c = {}) {
         image: safeUrl(c.image),
         fields: (Array.isArray(c.fields) ? c.fields : []).slice(0, 8).map(f => ({
             key: CERT_KEYS.includes(f.key) ? f.key : 'name', text: str(f.text, 200),
-            x: clamp(f.x, 0, 100, 50), y: clamp(f.y, 0, 100, 50), size: clamp(f.size, 6, 120, 28),
+            x: Math.min(100, Math.max(0, Math.round((Number(f.x) || 0) * 10) / 10)), y: Math.min(100, Math.max(0, Math.round((Number(f.y) || 0) * 10) / 10)), size: clamp(f.size, 6, 120, 28),
             color: /^#[0-9a-f]{6}$/i.test(f.color || '') ? f.color : '#111111', align: ['left', 'center', 'right'].includes(f.align) ? f.align : 'center', bold: !!f.bold,
+            italic: !!f.italic, font: /^[a-z]{2,20}$/.test(f.font || '') ? f.font : 'helvetica',
         })),
     }
 }
@@ -449,6 +450,35 @@ export function installPortals({ route, requireRole, audit, loadSettings, releas
         const fill = s => String(s).replace(/\{\{\s*(\w+)\s*\}\}/g, (_, k) => vars[k] ?? '')
         await sendDirect({ to: m.email, subject: fill(draft.subject), text: fill(draft.body), attachments: [{ filename: `${slugify(p.title)}-certificate.pdf`, content: Buffer.from(pdf, 'base64'), contentType: 'application/pdf' }] })
         await db().run("UPDATE ev_members SET cert_sent_at = datetime('now') WHERE id = ?", [m.id])
+        return { ok: true }
+    })
+
+    /* ── standalone certificates (for events run outside the portal, recipients from an Excel sheet) ── */
+    const readDesigns = async () => parseJson((await db().first("SELECT value FROM settings WHERE key = 'cert_templates'"))?.value, { items: [] })
+
+    route('GET', '/api/admin/cert-templates', async ({ user }) => {
+        requireRole(user, 'editor')
+        return await readDesigns()
+    })
+
+    route('PUT', '/api/admin/cert-templates', async ({ user, body }) => {
+        requireRole(user, 'editor')
+        const before = await readDesigns()
+        const items = (Array.isArray(body.items) ? body.items : []).slice(0, 50).map((d, i) => ({ id: str(d.id, 40) || `d${Date.now().toString(36)}${i}`, name: str(d.name, 80) || `Design ${i + 1}`, template: cleanCert(d.template) }))
+        await db().run("INSERT INTO settings (key, value, updated_at) VALUES ('cert_templates', ?, datetime('now')) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at", [JSON.stringify({ items })])
+        await audit(user, 'update', 'certificate-designs', '', `${items.length} design(s)`)
+        await releaseImages(user, [...imageUrls(before.items)].filter(u => !imageUrls(items).has(u)))
+        return { items }
+    })
+
+    route('POST', '/api/admin/certificates/send', async ({ user, body }) => {
+        requireRole(user, 'editor')
+        const to = str(body.to, 200).toLowerCase()
+        if (!isEmail(to)) fail(400, `Invalid email "${str(body.to, 60)}".`)
+        const pdf = String(body.pdf || '')
+        if (!/^[A-Za-z0-9+/=]+$/.test(pdf) || pdf.length > 1_500_000) fail(400, 'Certificate file is missing or too large (keep the template image under 1 MB).')
+        await sendDirect({ to, subject: str(body.subject, 300) || 'Your certificate', text: str(body.text, 10_000) || 'Your certificate is attached.',
+            attachments: [{ filename: `${slugify(str(body.filename, 80) || 'certificate')}.pdf`, content: Buffer.from(pdf, 'base64'), contentType: 'application/pdf' }] })
         return { ok: true }
     })
 

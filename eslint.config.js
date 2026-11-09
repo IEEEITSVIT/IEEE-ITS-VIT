@@ -34,7 +34,7 @@ export default defineConfig([
   },
   {
     // Context/UI modules intentionally export hooks alongside components.
-    files: ['src/context/**/*.jsx', 'src/admin/ui.jsx', 'src/admin/fields.jsx', 'src/admin/Preview.jsx', 'src/components/Cards.jsx', 'src/components/Reveal.jsx'],
+    files: ['src/context/**/*.jsx', 'src/admin/ui.jsx', 'src/admin/fields.jsx', 'src/admin/Preview.jsx', 'src/admin/CertDesigner.jsx', 'src/components/Cards.jsx', 'src/components/Reveal.jsx'],
     rules: { 'react-refresh/only-export-components': 'off' },
   },
 ])

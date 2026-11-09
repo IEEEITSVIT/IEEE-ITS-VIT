@@ -2,22 +2,35 @@
  * Certificates are drawn in the browser from the admin's template image (pdf-lib), so nothing is
  * stored: participants generate their own on demand, and the admin can email them or download ZIPs.
  */
-import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
+import { PDFDocument, rgb } from 'pdf-lib'
+import { certFont, fontVariant } from './certFonts'
 
 const PAGE_W = 842 // A4 landscape width in points; field sizes are relative to this
 const imageCache = new Map()
+const fontCache = new Map()
+const fetchBytes = (cache, url, what) => {
+    if (!cache.has(url)) cache.set(url, fetch(url).then(r => { if (!r.ok) throw new Error(`Could not load the ${what}.`); return r.arrayBuffer() }).catch(e => { cache.delete(url); throw e }))
+    return cache.get(url)
+}
 
 /** ImageKit converts any upload to a JPEG of sensible size; local paths are used as they are. */
 const templateUrl = url => (/ik\.imagekit\.io/.test(url) ? `${url}${url.includes('?') ? '&' : '?'}tr=w-2000,q-85,f-jpg` : url)
 
-async function imageBytes(url) {
-    if (!imageCache.has(url)) {
-        imageCache.set(url, fetch(templateUrl(url)).then(r => {
-            if (!r.ok) throw new Error('Could not load the certificate template image.')
-            return r.arrayBuffer()
-        }).catch(e => { imageCache.delete(url); throw e }))
+const imageBytes = url => fetchBytes(imageCache, templateUrl(url), 'certificate template image')
+
+/** Embeds (once per document) the font a field asks for; web fonts are subset to the letters used. */
+async function pdfFont(doc, ctx, f) {
+    const font = certFont(f.font)
+    const { key, value } = fontVariant(font, f.bold, f.italic)
+    const id = `${font.id}-${key}`
+    if (!ctx.fonts.has(id)) {
+        ctx.fonts.set(id, (async () => {
+            if (font.std) return doc.embedFont(value)
+            if (!ctx.fontkit) { ctx.fontkit = true; doc.registerFontkit((await import('@pdf-lib/fontkit')).default) }
+            return doc.embedFont(await fetchBytes(fontCache, value, `${font.family} font`), { subset: true })
+        })())
     }
-    return imageCache.get(url)
+    return ctx.fonts.get(id)
 }
 
 const fill = (text, data) => String(text || '').replace(/\{\{\s*(\w+)\s*\}\}/g, (_, k) => data[k] ?? '')
@@ -41,7 +54,7 @@ async function addPage(doc, template, data, ctx) {
     for (const f of template.fields || []) {
         const text = latin1(fieldText(f, data))
         if (!text) continue
-        const font = f.bold ? ctx.bold : ctx.regular
+        const font = await pdfFont(doc, ctx, f)
         let size = f.size || 28
         while (font.widthOfTextAtSize(text, size) > w * 0.9 && size > 8) size -= 1
         const tw = font.widthOfTextAtSize(text, size)
@@ -53,7 +66,7 @@ async function addPage(doc, template, data, ctx) {
 
 async function newDoc() {
     const doc = await PDFDocument.create()
-    return { doc, ctx: { images: new Map(), regular: await doc.embedFont(StandardFonts.Helvetica), bold: await doc.embedFont(StandardFonts.HelveticaBold) } }
+    return { doc, ctx: { images: new Map(), fonts: new Map() } }
 }
 
 export async function certificatePdf(template, data) {

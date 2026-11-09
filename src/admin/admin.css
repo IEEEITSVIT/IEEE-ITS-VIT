@@ -366,4 +366,13 @@ textarea.adm-input { resize: vertical; line-height: 1.5; }
 .adm-member .adm-icon-btn { width: 26px; height: 26px; }
 .adm-cert-canvas { position: relative; width: 100%; border-radius: 8px; overflow: hidden; border: 1px solid var(--a-border); user-select: none; touch-action: none; }
 .adm-cert-canvas img { display: block; width: 100%; }
-.adm-cert-canvas span { position: absolute; white-space: nowrap; font-family: Helvetica, Arial, sans-serif; cursor: move; outline: 1px dashed rgba(0, 98, 155, .6); outline-offset: 2px; line-height: 1; }
+.adm-cert-canvas { outline: none; }
+.adm-cert-canvas:focus-visible { box-shadow: 0 0 0 3px rgba(0, 134, 201, .3); }
+.adm-cert-canvas span { position: absolute; white-space: nowrap; cursor: grab; line-height: 1.05; padding: 2px 3px; border-radius: 3px; outline: 1px dashed rgba(0, 98, 155, .45); outline-offset: 1px; touch-action: none; }
+.adm-cert-canvas span:active { cursor: grabbing; }
+.adm-cert-canvas span.on { outline: 2px solid #0086c9; background: rgba(0, 134, 201, .08); }
+.adm-cert-guide { position: absolute; top: 0; bottom: 0; left: 50%; width: 0; border-left: 1px dashed #e11d48; pointer-events: none; }
+.adm-cert-palette { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: .8rem; color: var(--a-muted); }
+.adm-cert-palette button { border: 1px dashed var(--a-blue-2); background: var(--a-blue-soft); color: var(--a-blue); border-radius: 16px; padding: 5px 11px; font: inherit; font-size: .8rem; font-weight: 600; cursor: grab; }
+.adm-cert-inspector { display: flex; flex-direction: column; gap: 10px; padding: 12px; border: 1px solid var(--a-border); border-radius: 12px; background: #fff; }
+.adm-chipcheck.on { border-color: var(--a-blue); background: var(--a-blue-soft); color: var(--a-blue); }
