@@ -40,3 +40,6 @@ public/Screenshot 2025-11-29 002959.png
 
 # Vercel import file (contains secrets)
 .env.vercel
+
+# Drafts for the GitHub profile (copied to the profile repo by the account owner)
+github-profile/
