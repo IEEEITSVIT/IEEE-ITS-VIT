@@ -384,7 +384,7 @@ export const SETTINGS_FORMS = {
     },
 }
 
-export const PRIVATE_SETTINGS = ['notifications', 'smtp', 'recruitment_mail']
+export const PRIVATE_SETTINGS = ['notifications', 'smtp', 'smtp_auth', 'recruitment_mail']
 
 export const slugify = s => String(s || '').toLowerCase().normalize('NFKD').replace(/[^\w\s-]/g, '')
     .trim().replace(/[\s_]+/g, '-').replace(/-+/g, '-').slice(0, 80) || `item-${Date.now()}`

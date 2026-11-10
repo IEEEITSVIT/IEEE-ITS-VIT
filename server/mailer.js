@@ -16,9 +16,30 @@ async function getSetting(key) {
     return { ...DEFAULT_PRIVATE_SETTINGS[key], ...parseJson(row?.value, {}) }
 }
 
-export async function smtpConfig() {
+/**
+ * Two SMTP profiles:
+ *  • main — notifications, confirmations and bulk mail-outs (Admin → Email & SMTP → Main)
+ *  • auth — account emails: password-reset codes and links (Admin → Email & SMTP → Account emails).
+ *    Keeping it on its own mailbox means a big mail-out can never use up the daily quota reset codes need.
+ *    When the auth profile is not configured, account emails fall back to the main profile.
+ */
+export async function smtpConfig(profile = 'main') {
+    if (profile === 'auth') {
+        const a = await getSetting('smtp_auth')
+        const pass = process.env.SMTP_AUTH_PASS || decrypt(a.passEnc)
+        const host = process.env.SMTP_AUTH_HOST || a.host
+        const user = process.env.SMTP_AUTH_USER || a.user
+        if (host && user && pass) {
+            return {
+                profile: 'auth', host, user, pass, port: Number(process.env.SMTP_AUTH_PORT || a.port || 587),
+                secure: String(process.env.SMTP_AUTH_SECURE ?? a.secure) === 'true',
+                fromName: a.fromName || 'IEEE ITS VIT', fromEmail: a.fromEmail || user,
+            }
+        }
+    }
     const s = await getSetting('smtp')
     return {
+        profile: 'main',
         host: process.env.SMTP_HOST || s.host,
         port: Number(process.env.SMTP_PORT || s.port || 587),
         secure: String(process.env.SMTP_SECURE ?? s.secure) === 'true',
@@ -36,10 +57,10 @@ async function log(kind, recipient, subject, status, error = '') {
     } catch (e) { console.error('[mail] could not write log', e.message) }
 }
 
-export async function sendMail({ kind, to, subject, html, replyTo }) {
+export async function sendMail({ kind, to, subject, html, replyTo, profile = 'main' }) {
     const recipients = Array.isArray(to) ? to : emailList(to)
     if (!recipients.length) { await log(kind, '-', subject, 'skipped', 'No recipient configured'); return { ok: false, error: 'No recipient configured' } }
-    const cfg = await smtpConfig()
+    const cfg = await smtpConfig(profile)
     if (!cfg.host || !cfg.user || !cfg.pass) {
         await log(kind, recipients.join(', '), subject, 'skipped', 'SMTP not configured')
         return { ok: false, error: 'SMTP is not configured (host, username and password are required).' }
@@ -131,19 +152,22 @@ export async function notifyQuery(q) {
     return Promise.all(tasks)
 }
 
-export async function sendPasswordResetCode(user, code) {
+/** Reset email with the 6-digit code and a one-click link that opens the reset form with it filled in. */
+export async function sendPasswordResetCode(user, code, link) {
     const html = `
 <div style="font-family:Inter,Segoe UI,Arial,sans-serif;background:#0b0c0e;padding:24px;color:#f2f0eb">
   <div style="max-width:480px;margin:0 auto;background:#131518;border:1px solid #262a30;border-radius:14px;overflow:hidden">
-    <div style="background:#3d9bff;padding:16px 24px;font-weight:800;font-size:17px;color:#0b0c0e">Password reset code</div>
+    <div style="background:#3d9bff;padding:16px 24px;font-weight:800;font-size:17px;color:#0b0c0e">Reset your password</div>
     <div style="padding:24px">
       <p style="margin:0 0 16px;color:#c8c8d0">Hi ${esc(user.name || 'there')},<br/>Use this code to reset your IEEE ITS VIT account password:</p>
       <div style="font-family:'JetBrains Mono',Menlo,monospace;font-size:34px;font-weight:700;letter-spacing:10px;text-align:center;padding:16px;border:1px solid #262a30;border-radius:10px;color:#ffffff">${esc(code)}</div>
-      <p style="margin:16px 0 0;color:#8e939a;font-size:13px">The code expires in 10 minutes and can be used once. If you did not ask to reset your password, you can ignore this email — your password stays the same.</p>
+      ${link ? `<p style="text-align:center;margin:20px 0 4px"><a href="${esc(link)}" style="display:inline-block;background:#3d9bff;color:#0b0c0e;font-weight:700;text-decoration:none;padding:12px 22px;border-radius:999px">Reset password</a></p>
+      <p style="margin:0;color:#8e939a;font-size:12px;text-align:center">or open this link: <a href="${esc(link)}" style="color:#3d9bff">${esc(link)}</a></p>` : ''}
+      <p style="margin:16px 0 0;color:#8e939a;font-size:13px">The code and link expire in 10 minutes and work once. If you did not ask to reset your password, ignore this email — your password stays the same.</p>
     </div>
   </div>
 </div>`
-    return sendMail({ kind: 'password-reset', to: [user.email], subject: `${code} is your IEEE ITS password reset code`, html })
+    return sendMail({ kind: 'password-reset', to: [user.email], subject: `${code} is your IEEE ITS password reset code`, html, profile: 'auth' })
 }
 
 export async function notifySubscriber(email, list) {

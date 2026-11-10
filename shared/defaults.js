@@ -197,6 +197,16 @@ export const DEFAULT_PRIVATE_SETTINGS = {
         fromName: 'IEEE ITS VIT',
         fromEmail: '',
     },
+    // Separate mailbox for password-reset codes and links; empty = use the main SMTP.
+    smtp_auth: {
+        host: '',
+        port: 587,
+        secure: false,
+        user: '',
+        passEnc: '',
+        fromName: 'IEEE ITS VIT Accounts',
+        fromEmail: '',
+    },
 }
 
 const member = (name, role, initials, image, instagram, linkedin) => ({ name, role, initials, image, instagram, linkedin })

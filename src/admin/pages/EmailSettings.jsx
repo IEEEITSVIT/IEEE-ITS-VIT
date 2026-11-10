@@ -9,48 +9,101 @@ const PRESETS = {
     custom: { note: 'Any SMTP provider (Brevo, SendGrid, Zoho, Mailgun…). Port 465 usually needs “SSL/TLS” switched on.' },
 }
 
+/** One SMTP account (main, or the separate mailbox for account emails). */
+function SmtpCard({ profile, title, intro, value, main, onSaved, testTo, setTestTo, logsReload }) {
+    const toast = useToast()
+    const [smtp, setSmtp] = useState(value)
+    const [pass, setPass] = useState('')
+    const [busy, setBusy] = useState('')
+    const key = profile === 'auth' ? 'smtp_auth' : 'smtp'
+    const preset = smtp.host === 'smtp.gmail.com' ? 'gmail' : smtp.host === 'smtp.office365.com' ? 'outlook' : 'custom'
+    const configured = !!(smtp.host && smtp.user && smtp.hasPassword)
+
+    const save = async (extra = {}) => {
+        setBusy('save')
+        try {
+            await api.put(`/admin/settings/${key}`, { value: { ...smtp, pass, ...extra } })
+            const next = { ...smtp, hasPassword: smtp.hasPassword || !!pass || !!extra.copyMainPassword }
+            setSmtp(next); setPass(''); onSaved(next)
+            toast(`${title} saved (password stored encrypted)`)
+        } catch (e) { toast(e.message, 'error') } finally { setBusy('') }
+    }
+    const copyMain = () => {
+        const next = { ...smtp, host: main.host, port: main.port, secure: main.secure, user: main.user, fromEmail: main.fromEmail, hasPassword: main.hasPassword }
+        setSmtp(next)
+        api.put(`/admin/settings/${key}`, { value: { ...next, copyMainPassword: true } })
+            .then(() => { onSaved(next); toast('Copied the main SMTP account (including its password) — change it any time') })
+            .catch(e => toast(e.message, 'error'))
+    }
+    const test = async () => {
+        setBusy('test')
+        try { await api.post('/admin/email-test', { to: testTo, profile }); toast(`Test email sent to ${testTo}`) }
+        catch (e) { toast(e.message, 'error') } finally { setBusy(''); logsReload() }
+    }
+
+    return (
+        <section className="adm-panel">
+            <div className="adm-row between"><h3>{title}</h3>{profile === 'auth' && <Badge tone={configured ? 'ok' : 'warn'}>{configured ? 'Separate account' : 'Using main SMTP'}</Badge>}</div>
+            <p className="adm-hint">{intro}</p>
+            {profile === 'auth' && <button className="adm-btn small" onClick={copyMain} disabled={!main?.host}>Copy main SMTP settings</button>}
+            <div className="adm-seg" style={{ marginTop: 10 }}>
+                {Object.keys(PRESETS).map(p => (
+                    <button key={p} className={preset === p ? 'on' : ''} onClick={() => p !== 'custom' && setSmtp(s => ({ ...s, ...PRESETS[p], note: undefined }))}>{p === 'gmail' ? 'Gmail' : p === 'outlook' ? 'Outlook' : 'Custom'}</button>
+                ))}
+            </div>
+            <p className="adm-hint">{PRESETS[preset].note}</p>
+            <div className="adm-grid-2">
+                <label className="adm-field"><span>Host</span><input className="adm-input" value={smtp.host} onChange={e => setSmtp(s => ({ ...s, host: e.target.value }))} /></label>
+                <label className="adm-field"><span>Port</span><input className="adm-input" type="number" value={smtp.port} onChange={e => setSmtp(s => ({ ...s, port: Number(e.target.value) }))} /></label>
+            </div>
+            <Switch checked={smtp.secure} onChange={v => setSmtp(s => ({ ...s, secure: v }))} label="SSL/TLS (port 465)" />
+            <label className="adm-field"><span>Username</span><input className="adm-input" value={smtp.user} onChange={e => setSmtp(s => ({ ...s, user: e.target.value }))} autoComplete="off" /></label>
+            <label className="adm-field"><span>Password / app password {smtp.hasPassword && <Badge tone="ok">saved</Badge>}</span>
+                <input className="adm-input" type="password" value={pass} onChange={e => setPass(e.target.value)} placeholder={smtp.hasPassword ? '•••••••• (leave empty to keep)' : 'Enter SMTP password'} autoComplete="new-password" />
+            </label>
+            <div className="adm-grid-2">
+                <label className="adm-field"><span>From name</span><input className="adm-input" value={smtp.fromName} onChange={e => setSmtp(s => ({ ...s, fromName: e.target.value }))} /></label>
+                <label className="adm-field"><span>From email</span><input className="adm-input" value={smtp.fromEmail} onChange={e => setSmtp(s => ({ ...s, fromEmail: e.target.value }))} placeholder="defaults to username" /></label>
+            </div>
+            <div className="adm-row end">
+                {profile === 'auth' && configured && <button className="adm-btn ghost" disabled={!!busy} onClick={() => { setSmtp(s => ({ ...s, host: '', user: '', hasPassword: false })); save({ host: '', user: '', clearPassword: true }) }}>Stop using a separate account</button>}
+                <button className="adm-btn primary" disabled={!!busy} onClick={() => save()}>Save</button>
+            </div>
+            <hr />
+            <div className="adm-row">
+                <input className="adm-input" value={testTo} onChange={e => setTestTo(e.target.value)} />
+                <button className="adm-btn" disabled={busy === 'test'} onClick={test}>{busy === 'test' ? 'Sending…' : 'Send test email'}</button>
+            </div>
+        </section>
+    )
+}
+
 export default function EmailSettings() {
     const { user } = useAuth()
     const toast = useToast()
     const [smtp, setSmtp] = useState(null)
+    const [smtpAuth, setSmtpAuth] = useState(null)
     const [notif, setNotif] = useState(null)
-    const [pass, setPass] = useState('')
     const [testTo, setTestTo] = useState(user.email)
     const [busy, setBusy] = useState('')
     const logs = useLoader(() => api.get('/admin/email-logs').then(r => r.items), [])
 
     useEffect(() => {
-        api.get('/admin/settings').then(r => { setSmtp(r.settings.smtp); setNotif(r.settings.notifications) }).catch(e => toast(e.message, 'error'))
+        api.get('/admin/settings').then(r => { setSmtp(r.settings.smtp); setSmtpAuth(r.settings.smtp_auth); setNotif(r.settings.notifications) }).catch(e => toast(e.message, 'error'))
     }, [toast])
-
-    const preset = smtp?.host === 'smtp.gmail.com' ? 'gmail' : smtp?.host === 'smtp.office365.com' ? 'outlook' : 'custom'
 
     const saveNotif = async () => {
         setBusy('notif')
         try { await api.put('/admin/settings/notifications', { value: notif }); toast('Notification settings saved') }
         catch (e) { toast(e.message, 'error') } finally { setBusy('') }
     }
-    const saveSmtp = async () => {
-        setBusy('smtp')
-        try {
-            await api.put('/admin/settings/smtp', { value: { ...smtp, pass } })
-            setSmtp(s => ({ ...s, hasPassword: s.hasPassword || !!pass }))
-            setPass('')
-            toast('SMTP settings saved (password stored encrypted)')
-        } catch (e) { toast(e.message, 'error') } finally { setBusy('') }
-    }
-    const test = async () => {
-        setBusy('test')
-        try { await api.post('/admin/email-test', { to: testTo }); toast(`Test email sent to ${testTo}`) }
-        catch (e) { toast(e.message, 'error') } finally { setBusy(''); logs.reload() }
-    }
 
-    if (!smtp || !notif) return <Spinner />
+    if (!smtp || !smtpAuth || !notif) return <Spinner />
     const N = (k, label) => <Switch checked={notif[k]} onChange={v => setNotif(n => ({ ...n, [k]: v }))} label={label} />
 
     return (
         <>
-            <PageTitle title="Email & SMTP" subtitle="Where order and query notifications go, and how they are sent." />
+            <PageTitle title="Email & SMTP" subtitle="Where notifications go, and the two mail accounts that send them: the main SMTP and a separate one for password-reset codes." />
             <div className="adm-grid-2 top">
                 <section className="adm-panel">
                     <h3>Notification recipients</h3>
@@ -71,34 +124,12 @@ export default function EmailSettings() {
                     <div className="adm-row end"><button className="adm-btn primary" disabled={busy === 'notif'} onClick={saveNotif}>Save recipients</button></div>
                 </section>
 
-                <section className="adm-panel">
-                    <h3>SMTP server</h3>
-                    <div className="adm-seg">
-                        {Object.keys(PRESETS).map(p => (
-                            <button key={p} className={preset === p ? 'on' : ''} onClick={() => p !== 'custom' && setSmtp(s => ({ ...s, ...PRESETS[p], note: undefined }))}>{p === 'gmail' ? 'Gmail' : p === 'outlook' ? 'Outlook' : 'Custom'}</button>
-                        ))}
-                    </div>
-                    <p className="adm-hint">{PRESETS[preset].note}</p>
-                    <div className="adm-grid-2">
-                        <label className="adm-field"><span>Host</span><input className="adm-input" value={smtp.host} onChange={e => setSmtp(s => ({ ...s, host: e.target.value }))} /></label>
-                        <label className="adm-field"><span>Port</span><input className="adm-input" type="number" value={smtp.port} onChange={e => setSmtp(s => ({ ...s, port: Number(e.target.value) }))} /></label>
-                    </div>
-                    <Switch checked={smtp.secure} onChange={v => setSmtp(s => ({ ...s, secure: v }))} label="SSL/TLS (port 465)" />
-                    <label className="adm-field"><span>Username</span><input className="adm-input" value={smtp.user} onChange={e => setSmtp(s => ({ ...s, user: e.target.value }))} autoComplete="off" /></label>
-                    <label className="adm-field"><span>Password / app password {smtp.hasPassword && <Badge tone="ok">saved</Badge>}</span>
-                        <input className="adm-input" type="password" value={pass} onChange={e => setPass(e.target.value)} placeholder={smtp.hasPassword ? '•••••••• (leave empty to keep)' : 'Enter SMTP password'} autoComplete="new-password" />
-                    </label>
-                    <div className="adm-grid-2">
-                        <label className="adm-field"><span>From name</span><input className="adm-input" value={smtp.fromName} onChange={e => setSmtp(s => ({ ...s, fromName: e.target.value }))} /></label>
-                        <label className="adm-field"><span>From email</span><input className="adm-input" value={smtp.fromEmail} onChange={e => setSmtp(s => ({ ...s, fromEmail: e.target.value }))} placeholder="defaults to username" /></label>
-                    </div>
-                    <div className="adm-row end"><button className="adm-btn primary" disabled={busy === 'smtp'} onClick={saveSmtp}>Save SMTP</button></div>
-                    <hr />
-                    <div className="adm-row">
-                        <input className="adm-input" value={testTo} onChange={e => setTestTo(e.target.value)} />
-                        <button className="adm-btn" disabled={busy === 'test'} onClick={test}>{busy === 'test' ? 'Sending…' : 'Send test email'}</button>
-                    </div>
-                </section>
+                <SmtpCard profile="main" title="Main SMTP" value={smtp} main={smtp} onSaved={setSmtp} testTo={testTo} setTestTo={setTestTo} logsReload={logs.reload}
+                    intro="Sends order and query notifications, confirmations, recruitment results, event emails and certificates (the Email Outbox)." />
+            </div>
+            <div className="adm-grid-2 top">
+                <SmtpCard profile="auth" title="Account emails SMTP" value={smtpAuth} main={smtp} onSaved={setSmtpAuth} testTo={testTo} setTestTo={setTestTo} logsReload={logs.reload}
+                    intro="Sends password-reset codes and links only. A separate mailbox keeps these working even when a big mail-out has used the main account's daily limit. If left empty, the main SMTP is used." />
             </div>
 
             <section className="adm-panel">

@@ -322,7 +322,7 @@ route('PUT', '/api/auth/profile', async ({ user, body }) => {
 route('POST', '/api/auth/forgot', async ({ req, body }) => {
     const email = str(body.email, 200).toLowerCase()
     if (!isEmail(email)) fail(400, 'Please enter a valid email address.')
-    const smtp = await smtpConfig()
+    const smtp = await smtpConfig('auth')
     if (!smtp.host || !smtp.user || !smtp.pass) fail(503, 'Password reset by email is not available right now. Please contact the chapter.')
     const keys = [`reset-ip:${clientIp(req)}`, `reset-email:${email}`]
     await assertNotThrottled(keys)
@@ -333,7 +333,10 @@ route('POST', '/api/auth/forgot', async ({ req, body }) => {
         const code = generateOtp()
         await db.run('UPDATE password_resets SET used = 1 WHERE user_id = ? AND used = 0', [user.id])
         await db.run('INSERT INTO password_resets (user_id, code_hash, expires_at) VALUES (?, ?, ?)', [user.id, hashOtp(code, user.id), Date.now() + OTP_TTL_MS])
-        const sent = await sendPasswordResetCode(user, code)
+        const site = (await loadSettings(['site'])).site
+        const base = (site.url || `https://${req.headers['x-forwarded-host'] || req.headers.host}`).replace(/\/$/, '')
+        const link = `${base}/login?mode=forgot&email=${encodeURIComponent(user.email)}&code=${code}`
+        const sent = await sendPasswordResetCode(user, code, link)
         if (!sent.ok) console.error('[reset] email failed:', sent.error)
     }
     return { ok: true, message: 'If an account exists for that email, a 6-digit code is on its way.' }
@@ -609,6 +612,7 @@ route('GET', '/api/admin/settings', async ({ user }) => {
     const keys = user.role === 'admin' ? [...PUBLIC_SETTING_KEYS, ...PRIVATE_SETTINGS] : PUBLIC_SETTING_KEYS
     const s = await loadSettings(keys)
     if (s.smtp) { s.smtp = { ...s.smtp, hasPassword: !!s.smtp.passEnc || !!process.env.SMTP_PASS }; delete s.smtp.passEnc }
+    if (s.smtp_auth) { s.smtp_auth = { ...s.smtp_auth, hasPassword: !!s.smtp_auth.passEnc || !!process.env.SMTP_AUTH_PASS }; delete s.smtp_auth.passEnc }
     return { settings: s }
 })
 
@@ -643,12 +647,13 @@ route('PUT', '/api/admin/settings/:key', async ({ user, params, body }) => {
             notifyOrders: !!value.notifyOrders, notifyQueries: !!value.notifyQueries, notifySuggestions: !!value.notifySuggestions,
             notifySubscribers: !!value.notifySubscribers, sendUserConfirmation: !!value.sendUserConfirmation,
         }
-    } else if (key === 'smtp') {
-        const current = (await loadSettings(['smtp'])).smtp
+    } else if (key === 'smtp' || key === 'smtp_auth') {
+        const { smtp: main, [key]: current } = await loadSettings(['smtp', key])
+        // "Copy from main" reuses the main account's encrypted password without the admin re-typing it.
+        const passEnc = value.pass ? encrypt(String(value.pass)) : value.clearPassword ? '' : value.copyMainPassword && key === 'smtp_auth' ? main.passEnc || '' : current.passEnc || ''
         value = {
             host: str(value.host, 200), port: Number(value.port) || 587, secure: !!value.secure, user: str(value.user, 200),
-            fromName: str(value.fromName, 100), fromEmail: isEmail(value.fromEmail) ? str(value.fromEmail, 200) : '',
-            passEnc: value.pass ? encrypt(String(value.pass)) : value.clearPassword ? '' : current.passEnc || '',
+            fromName: str(value.fromName, 100), fromEmail: isEmail(value.fromEmail) ? str(value.fromEmail, 200) : '', passEnc,
         }
     }
     const json = JSON.stringify(value)
@@ -810,7 +815,11 @@ route('DELETE', '/api/admin/users/:id', async ({ user, params }) => {
 route('POST', '/api/admin/email-test', async ({ user, body }) => {
     requireRole(user, 'admin')
     const to = emailList(body.to || user.email)
-    const r = await sendMail({ kind: 'test', to, subject: 'IEEE ITS — SMTP test email', html: '<p>Your SMTP settings work.</p><p>— IEEE ITS Website Notification System</p>' })
+    const profile = body.profile === 'auth' ? 'auth' : 'main'
+    const cfg = await smtpConfig(profile)
+    if (profile === 'auth' && cfg.profile !== 'auth') fail(400, 'The account-email SMTP is not set up yet, so account emails currently use the main SMTP.')
+    const r = await sendMail({ kind: 'test', to, profile, subject: `IEEE ITS — SMTP test (${profile === 'auth' ? 'account emails' : 'main'})`,
+        html: `<p>Your ${profile === 'auth' ? 'account-email' : 'main'} SMTP settings work (sent from ${cfg.user}).</p><p>— IEEE ITS Website</p>` })
     if (!r.ok) fail(400, `Email failed: ${r.error}`)
     return { ok: true }
 })

@@ -6,10 +6,12 @@ import { api } from '../lib/api'
 import Seo from '../components/Seo'
 
 /* Forgot password: request a 6-digit code by email, then set a new password with it. */
-function ForgotPassword({ initialEmail, onDone, onBack }) {
-    const [step, setStep] = useState('email')
+function ForgotPassword({ initialEmail, initialCode, onDone, onBack }) {
+    // Opened from the email's "Reset password" link: email and code arrive pre-filled.
+    const linkCode = /^\d{6}$/.test(initialCode || '') ? initialCode : ''
+    const [step, setStep] = useState(linkCode && initialEmail ? 'code' : 'email')
     const [email, setEmail] = useState(initialEmail || '')
-    const [code, setCode] = useState('')
+    const [code, setCode] = useState(linkCode)
     const [pw, setPw] = useState({ next: '', confirm: '' })
     const [msg, setMsg] = useState(null)
     const [busy, setBusy] = useState(false)
@@ -46,7 +48,7 @@ function ForgotPassword({ initialEmail, onDone, onBack }) {
             <span className="label">Account recovery</span>
             <h1 className="display h-md" style={{ marginTop: 14 }}>Reset password</h1>
             <p className="muted" style={{ margin: '12px 0 22px' }}>
-                {step === 'email' ? 'Enter your account email and we will send you a 6-digit code.' : <>Enter the code sent to <b style={{ color: 'var(--text)' }}>{email}</b> and choose a new password.</>}
+                {step === 'email' ? 'Enter your account email and we will send you a 6-digit code.' : linkCode && code === linkCode ? <>Choose a new password for <b style={{ color: 'var(--text)' }}>{email}</b>.</> : <>Enter the code sent to <b style={{ color: 'var(--text)' }}>{email}</b> and choose a new password.</>}
             </p>
             {step === 'email' ? (
                 <form className="form" onSubmit={sendCode}>
@@ -122,7 +124,7 @@ export default function Login() {
             <Seo title={mode === 'forgot' ? 'Reset password' : 'Sign In'} noindex />
             <motion.div className="auth-card" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}>
                 {mode === 'forgot' ? (
-                    <ForgotPassword initialEmail={f.email} onBack={() => { setMode('login'); setErr('') }}
+                    <ForgotPassword initialEmail={params.get('email') || f.email} initialCode={params.get('code') || ''} onBack={() => { setMode('login'); setErr('') }}
                         onDone={async u => { await refresh(); if (next?.startsWith('/')) navigate(next); else if (u.role !== 'member') navigate('/admin') }} />
                 ) : (<>
                 <span className="label">Member portal</span>
