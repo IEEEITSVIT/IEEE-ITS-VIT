@@ -22,6 +22,7 @@ export const SECTIONS = [
     { id: 'moments.list', page: '/moments', label: 'Photo albums', kind: 'grid', images: true },
     { id: 'faculty.list', page: '/faculty', label: 'Faculty profiles', kind: 'split', images: true },
     { id: 'webteam.list', page: '/web-team', label: 'Web team', kind: 'grid', images: true },
+    { id: 'advisory.list', page: '/advisory-board', label: 'Advisory Board', kind: 'grid', images: true },
     { id: 'webteam.note', page: '/web-team', label: 'Developers’ note', kind: 'split' },
     { id: 'blogs.list', page: '/blogs', label: 'Blog list', kind: 'grid', images: true },
     { id: 'vlogs.list', page: '/vlogs', label: 'Vlogs', kind: 'grid', images: true },

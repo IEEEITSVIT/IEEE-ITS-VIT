@@ -226,7 +226,7 @@ route('GET', '/api/sitemap.xml', async ({ req, res }) => {
     const abs = u => (!u ? '' : /^https?:/i.test(u) ? u : `${base}${u.startsWith('/') ? '' : '/'}${u}`)
     const pages = [
         ['/', '1.0', 'weekly'], ['/timeline', '0.9', 'weekly'], ['/moments', '0.7', 'monthly'], ['/blogs', '0.7', 'weekly'],
-        ['/vlogs', '0.6', 'monthly'], ['/faculty', '0.6', 'yearly'], ['/web-team', '0.5', 'yearly'], ['/merch', '0.6', 'monthly'],
+        ['/vlogs', '0.6', 'monthly'], ['/faculty', '0.6', 'yearly'], ['/advisory-board', '0.6', 'yearly'], ['/web-team', '0.5', 'yearly'], ['/merch', '0.6', 'monthly'],
         ['/games', '0.4', 'yearly'], ['/faq', '0.6', 'monthly'], ['/join', '0.7', 'monthly'], ['/contact', '0.6', 'yearly'],
         ['/suggestions', '0.4', 'yearly'], ...(recruitment?.open ? [['/recruitment', '0.9', 'daily']] : []),
     ]

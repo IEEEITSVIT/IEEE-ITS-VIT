@@ -22,6 +22,7 @@ import EventDetail from './pages/EventDetail'
 import JoinUs from './pages/JoinUs'
 import Login from './pages/Login'
 import Faculty from './pages/Faculty'
+import AdvisoryBoard from './pages/AdvisoryBoard'
 import Games from './pages/Games'
 import Merch from './pages/Merch'
 import WebTeam from './pages/WebTeam'
@@ -110,6 +111,7 @@ function App() {
                 <Route path="/join" element={<JoinUs />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/faculty" element={<Faculty />} />
+                <Route path="/advisory-board" element={<AdvisoryBoard />} />
                 <Route path="/games" element={<Games />} />
                 <Route path="/merch" element={<Merch />} />
                 <Route path="/web-team" element={<WebTeam />} />

@@ -124,6 +124,20 @@ export const CONTENT_TYPES = {
             { name: 'linkedin', label: 'LinkedIn URL', type: 'url' },
         ],
     },
+    advisory: {
+        label: 'Advisory Board (past boards)', singular: 'Past member', group: 'People', title: 'name', image: 'image',
+        help: 'Previous boards and web teams, shown by year on the Advisory Board page (More menu). Give everyone in one board the same year, e.g. 2024-2025.',
+        fields: [
+            { name: 'year', label: 'Board year', type: 'text', required: true, help: 'e.g. 2024-2025 — newest years are listed first.' },
+            { name: 'group', label: 'Group', type: 'select', options: ['Board', 'Web Team'] },
+            { name: 'name', label: 'Name', type: 'text' },
+            { name: 'role', label: 'Position', type: 'text' },
+            { name: 'image', label: 'Photo', type: 'image' },
+            { name: 'focus', label: 'Photo focus (CSS position, e.g. "50% 20%")', type: 'text', help: 'Fine-tune the crop so faces line up across all cards.' },
+            { name: 'linkedin', label: 'LinkedIn URL', type: 'url' },
+            { name: 'instagram', label: 'Instagram URL', type: 'url' },
+        ],
+    },
     blogs: {
         label: 'Blog Posts', singular: 'Blog post', group: 'Publications', title: 'title', image: 'image',
         fields: [
@@ -287,7 +301,7 @@ export const SETTINGS_FORMS = {
         ],
     },
     pages: {
-        label: 'Page Headers', fields: ['blogs', 'vlogs', 'timeline', 'moments', 'faq', 'faculty', 'merch', 'games', 'webteam', 'suggestions', 'contact', 'join']
+        label: 'Page Headers', fields: ['blogs', 'vlogs', 'timeline', 'moments', 'faq', 'faculty', 'advisory', 'merch', 'games', 'webteam', 'suggestions', 'contact', 'join']
             .flatMap(p => [
                 { name: `${p}.overline`, label: `${p} · overline`, type: 'text' },
                 { name: `${p}.title`, label: `${p} · title`, type: 'text' },

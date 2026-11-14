@@ -16,10 +16,12 @@ const near = v => (typeof window !== 'undefined' && window.innerWidth <= 720 ? M
 
 export function PersonCard({ person, subtitle, delay = 0, link, from }) {
     const enter = ENTER[from] ? { x: near(ENTER[from].x), y: near(ENTER[from].y) } : { x: 0, y: 24 }
+    // Entries created ahead of time (no name yet) show a quiet placeholder instead of empty text.
+    if (!person.name) person = { ...person, name: 'Name to be added', role: person.role || 'Position', placeholder: true }
     const socials = [['instagram', person.instagram], ['linkedin', person.linkedin], ['website', link]].filter(([, u]) => u)
     return (
-        <Reveal className="person" delay={delay} x={enter.x} y={enter.y}>
-            <Img src={person.image} alt={person.name} ratio="4x5" width={600} face focus={person.focus || '50% 30%'} fallback={person.initials || initials(person.name)}>
+        <Reveal className={`person${person.placeholder ? ' placeholder' : ''}`} delay={delay} x={enter.x} y={enter.y}>
+            <Img src={person.image} alt={person.placeholder ? '' : person.name} ratio="4x5" width={600} face focus={person.focus || '50% 30%'} fallback={person.placeholder ? '' : person.initials || initials(person.name)}>
                 {socials.length > 0 && (
                     <div className="socials">
                         {socials.map(([p, u]) => <SmartLink key={p} to={u} className="icon-btn" aria-label={`${person.name} on ${p}`}><SocialIcon platform={p} /></SmartLink>)}

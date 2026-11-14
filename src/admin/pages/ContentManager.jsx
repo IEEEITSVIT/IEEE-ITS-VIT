@@ -10,12 +10,12 @@ import Icon from '../icons'
 
 /* Where each kind of content appears on the website (the preview opens there). */
 const PREVIEW_PATH = {
-    faculty: '/faculty', web_team: '/web-team', blogs: d => (d.title ? `/blogs/${d.slug || slugify(d.title)}` : '/blogs'),
+    faculty: '/faculty', advisory: '/advisory-board', web_team: '/web-team', blogs: d => (d.title ? `/blogs/${d.slug || slugify(d.title)}` : '/blogs'),
     magazines: '/blogs', vlogs: '/vlogs', faqs: '/faq', merch: '/merch',
 }
 /* The section of that page the preview scrolls to. */
 const PREVIEW_FOCUS = {
-    board: 'home.board', banners: 'home.banners', gallery: 'home.gallery', domains: 'home.domains', faculty: 'faculty.list',
+    board: 'home.board', banners: 'home.banners', gallery: 'home.gallery', domains: 'home.domains', faculty: 'faculty.list', advisory: 'advisory.list',
     web_team: 'webteam.list', faqs: 'faq.list', merch: 'merch.list', vlogs: 'vlogs.list', footer_links: 'footer', social_links: 'footer',
 }
 const previewPath = (type, data) => { const p = PREVIEW_PATH[type]; return typeof p === 'function' ? p(data) : p || '/' }

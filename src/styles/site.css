@@ -685,3 +685,12 @@ img, video { max-width: 100%; }
   .rec-test-bar { gap: 10px; }
   .rec-test-bar span:not(.rec-timer) { display: none; }
 }
+
+/* Advisory Board */
+.year-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: clamp(28px, 4vw, 44px); }
+.year-tabs .chip { cursor: pointer; font-size: .82rem; padding: 8px 16px; background: transparent; color: var(--text); border: 1px solid var(--line); }
+.year-tabs .chip:hover { border-color: var(--accent); }
+.year-tabs .chip.on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.advisory-group + .advisory-group { margin-top: clamp(40px, 6vw, 72px); }
+.advisory-group > .display { margin: 0 0 22px; }
+.person.placeholder h3, .person.placeholder .role { color: var(--muted); font-style: italic; font-weight: 500; }
