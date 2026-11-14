@@ -26,6 +26,11 @@ export const DEFAULT_SETTINGS = {
         address: 'VIT, Vellore, Tamil Nadu',
         url: 'https://ieee-its-vit.vercel.app',
         madeWith: 'Designed & built by the',
+        workCta: {
+            enabled: true, overline: 'Our work', title: 'Explore what we build',
+            text: 'Open-source projects with their architecture and code — and guides and notes to help you build your own.',
+            projectsLabel: 'See projects', resourcesLabel: 'Study resources',
+        },
         footerForm: {
             enabled: true,
             overline: 'Get in touch',

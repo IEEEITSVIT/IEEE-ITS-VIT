@@ -6,6 +6,7 @@ import PreviewBridge from './components/PreviewBridge'
 import Navbar from './components/Navbar'
 import Footer from './components/Footer'
 import FooterContact from './components/FooterContact'
+import WorkCta from './components/WorkCta'
 import Preloader from './components/Preloader'
 import ScrollProgress from './components/ScrollProgress'
 import ThemeApplier from './components/ThemeApplier'
@@ -133,7 +134,7 @@ function App() {
               </Routes>
             </Page>
           </AnimatePresence>
-          {!focusMode && <><FooterContact /><Footer /></>}
+          {!focusMode && <><FooterContact /><WorkCta /><Footer /></>}
         </>
       )}
     </>

@@ -38,6 +38,7 @@ export const SECTIONS = [
     { id: 'recruitment.main', page: '/recruitment', label: 'Recruitment portal', kind: 'grid' },
     { id: 'portal.main', page: '/timeline', label: 'Event registration portals', kind: 'split', images: true },
     { id: 'footer.contact', page: '/', label: 'Contact form above footer', kind: 'split' },
+    { id: 'work.cta', page: '/', label: '"Our work" band above footer', kind: 'band' },
     { id: 'footer', page: '/', label: 'Footer', kind: 'footer' },
 ]
 export const SECTION_IDS = SECTIONS.map(s => s.id)

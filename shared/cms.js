@@ -277,6 +277,12 @@ export const SETTINGS_FORMS = {
             { name: 'footerForm.text', label: 'Footer form text', type: 'textarea' },
             { name: 'footerForm.button', label: 'Footer form button label', type: 'text' },
             { name: 'footerForm.success', label: 'Footer form success message', type: 'text' },
+            { name: 'workCta.enabled', label: 'Show the "Our work" band (links to Projects & Resources) above the footer', type: 'toggle' },
+            { name: 'workCta.overline', label: '"Our work" band · overline', type: 'text' },
+            { name: 'workCta.title', label: '"Our work" band · title', type: 'text' },
+            { name: 'workCta.text', label: '"Our work" band · text', type: 'textarea' },
+            { name: 'workCta.projectsLabel', label: '"Our work" band · projects button', type: 'text' },
+            { name: 'workCta.resourcesLabel', label: '"Our work" band · resources button', type: 'text' },
         ],
     },
     home: {
