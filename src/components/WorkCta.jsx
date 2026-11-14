@@ -27,7 +27,7 @@ export default function WorkCta() {
                         </div>
                     </div>
                     <Link to="/projects" className="work-cta-visual" aria-label="Open Projects & Resources">
-                        <div className="work-cta-stack">
+                        <div className="work-cta-stack" style={{ '--step': covers.length > 1 ? `${38 / (covers.length - 1)}%` : '19%', '--vstep': covers.length > 1 ? `${30 / (covers.length - 1)}%` : '15%' }}>
                             {covers.map((p, i) => <img key={p.id} src={img(p.image, { w: 520 })} alt="" style={{ '--i': i }} loading="lazy" />)}
                             {!covers.length && <span className="work-cta-empty">{'</>'}</span>}
                         </div>
