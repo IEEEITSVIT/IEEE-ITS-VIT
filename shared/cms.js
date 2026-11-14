@@ -136,7 +136,7 @@ export const CONTENT_TYPES = {
             { name: 'github', label: 'GitHub repository', type: 'url' },
             { name: 'live', label: 'Live site (optional)', type: 'url' },
             { name: 'tech', label: 'Tech stack (one per line)', type: 'strings' },
-            { name: 'image', label: 'Card image (optional — the diagram is used when empty)', type: 'image' },
+            { name: 'image', label: 'Cover image / logo (shown on the card)', type: 'image', help: "Use the project's website logo. Upload it here (stored on ImageKit); the architecture diagram is shown only on the project page." },
             { name: 'diagram', label: 'Architecture diagram', type: 'image' },
             { name: 'body', label: 'Write-up', type: 'html' },
         ],

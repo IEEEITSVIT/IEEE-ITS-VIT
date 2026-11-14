@@ -17,10 +17,10 @@ export function ProjectDetail() {
     if (!p) return <PageHeader title={ready ? 'Project not found' : 'Loading'} overline="Projects"><Link className="btn" to="/projects" style={{ marginTop: 20 }}>All projects</Link></PageHeader>
     const abs = u => (u ? new URL(u, window.location.origin).href : undefined)
     const jsonLd = { '@context': 'https://schema.org', '@type': 'SoftwareSourceCode', name: p.title, description: p.tagline, codeRepository: p.github || undefined, url: p.live || undefined,
-        programmingLanguage: p.tech?.length ? p.tech : undefined, image: abs(p.diagram || p.image), author: { '@type': 'Organization', name: settings.site?.name } }
+        programmingLanguage: p.tech?.length ? p.tech : undefined, image: abs(p.image || p.diagram), author: { '@type': 'Organization', name: settings.site?.name } }
     return (
         <>
-            <Seo title={p.title} description={p.tagline} image={p.diagram || p.image} type="article" jsonLd={jsonLd} />
+            <Seo title={p.title} description={p.tagline} image={p.image || p.diagram} type="article" jsonLd={jsonLd} />
             <PageHeader title={p.title} overline={`Projects / ${p.status || 'Project'}`} subtitle={p.tagline} wide>
                 <div className="hero-cta">
                     {p.github && <a className="btn solid" href={p.github} target="_blank" rel="noreferrer">View on GitHub <span className="arr">→</span></a>}

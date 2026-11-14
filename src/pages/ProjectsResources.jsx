@@ -10,7 +10,8 @@ import { itemSlug, fileType } from '../lib/items'
 
 /** Projects and study resources on one page; ?tab=resources opens the second tab. */
 export default function ProjectsResources() {
-    const { list } = useSite()
+    const { list, settings } = useSite()
+    const siteLogo = settings.site?.logoRound
     const [params, setParams] = useSearchParams()
     const projects = list('projects')
     const resources = list('resources')
@@ -32,7 +33,8 @@ export default function ProjectsResources() {
                             {projects.map((p, i) => (
                                 <Reveal key={p.id} delay={(i % 2) * 0.06}>
                                     <Link to={`/projects/${itemSlug(p)}`} className="card pr-card">
-                                        <Img src={p.image || p.diagram} alt={p.title} ratio="16x9" width={900} contain={!p.image} />
+                                        <Img src={p.image} alt={`${p.title} logo`} ratio="16x9" width={900} contain className="pr-cover"
+                                            fallback={siteLogo ? <img src={siteLogo} alt="" /> : null} />
                                         <div className="card-body">
                                             <div className="rec-top">{p.status && <span className="chip">{p.status}</span>}{p.year && <span className="muted small">{p.year}</span>}</div>
                                             <h3 className="display h-sm">{p.title}</h3>

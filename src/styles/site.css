@@ -702,7 +702,8 @@ img, video { max-width: 100%; }
 .pr-card .card-body { padding-top: 18px; display: flex; flex-direction: column; gap: 10px; flex: 1; }
 .pr-card .card-body p { -webkit-line-clamp: 3; }
 .pr-card .link-arrow { margin-top: auto; }
-.pr-card .frame.contain { background: #f4f6f9; }
+.pr-card .frame.pr-cover { background: var(--surface-2); }
+.pr-card .frame.pr-cover img { filter: none; }
 .pr-resource { border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; background: var(--surface); }
 .pr-resource .card-body { padding-top: 6px; }
 .pr-file { font-family: var(--font-mono); font-size: .7rem; letter-spacing: .1em; color: var(--accent); }
