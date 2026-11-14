@@ -11,7 +11,7 @@ import Icon from '../icons'
 /* Where each kind of content appears on the website (the preview opens there). */
 const PREVIEW_PATH = {
     faculty: '/faculty', advisory: '/advisory-board', web_team: '/web-team', blogs: d => (d.title ? `/blogs/${d.slug || slugify(d.title)}` : '/blogs'),
-    magazines: '/blogs', vlogs: '/vlogs', faqs: '/faq', merch: '/merch',
+    magazines: '/blogs', projects: d => (d.title ? `/projects/${d.slug || slugify(d.title)}` : '/projects'), resources: d => (d.title ? `/resources/${d.slug || slugify(d.title)}` : '/projects?tab=resources'), vlogs: '/vlogs', faqs: '/faq', merch: '/merch',
 }
 /* The section of that page the preview scrolls to. */
 const PREVIEW_FOCUS = {

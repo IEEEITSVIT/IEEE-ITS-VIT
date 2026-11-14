@@ -23,6 +23,8 @@ export const SECTIONS = [
     { id: 'faculty.list', page: '/faculty', label: 'Faculty profiles', kind: 'split', images: true },
     { id: 'webteam.list', page: '/web-team', label: 'Web team', kind: 'grid', images: true },
     { id: 'advisory.list', page: '/advisory-board', label: 'Advisory Board', kind: 'grid', images: true },
+    { id: 'projects.list', page: '/projects', label: 'Projects & Resources', kind: 'grid', images: true },
+    { id: 'project.detail', page: '/projects', label: 'Project and resource pages', kind: 'split', images: true },
     { id: 'webteam.note', page: '/web-team', label: 'Developers’ note', kind: 'split' },
     { id: 'blogs.list', page: '/blogs', label: 'Blog list', kind: 'grid', images: true },
     { id: 'vlogs.list', page: '/vlogs', label: 'Vlogs', kind: 'grid', images: true },

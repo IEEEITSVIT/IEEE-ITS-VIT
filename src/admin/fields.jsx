@@ -8,12 +8,22 @@ import { Modal, Switch, useToast, Spinner } from './ui'
 import Icon from './icons'
 
 const MAX_UPLOAD = 15 * 1024 * 1024
+const MAX_DOC = 25 * 1024 * 1024
 const ACCEPT = 'image/png,image/jpeg,image/webp,image/gif,image/svg+xml,image/avif'
+const DOC_EXT = ['pdf', 'doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx', 'csv', 'txt', 'md', 'zip']
+const ACCEPT_DOC = DOC_EXT.map(e => `.${e}`).join(',')
+export const isImageUrl = u => /\.(png|jpe?g|webp|gif|svg|avif)(\?|$)/i.test(String(u || ''))
+export const fileExt = u => (String(u || '').split('?')[0].match(/\.([a-z0-9]{2,5})$/i)?.[1] || '').toLowerCase()
 
 /* ---------- ImageKit upload (browser → ImageKit directly, signed by our server) ---------- */
-export async function uploadToImageKit(file, onProgress) {
-    if (!file.type.startsWith('image/')) throw new Error(`${file.name}: only image files can be uploaded.`)
-    if (file.size > MAX_UPLOAD) throw new Error(`${file.name}: file is larger than 15 MB.`)
+export async function uploadToImageKit(file, onProgress, { document = false } = {}) {
+    if (document) {
+        if (!DOC_EXT.includes(fileExt(file.name))) throw new Error(`${file.name}: upload a PDF, Word, PowerPoint, Excel, CSV, text, Markdown or ZIP file.`)
+        if (file.size > MAX_DOC) throw new Error(`${file.name}: file is larger than 25 MB.`)
+    } else {
+        if (!file.type.startsWith('image/')) throw new Error(`${file.name}: only image files can be uploaded.`)
+        if (file.size > MAX_UPLOAD) throw new Error(`${file.name}: file is larger than 15 MB.`)
+    }
     const auth = await api.get('/admin/media/auth')
     const body = new FormData()
     body.append('file', file)
@@ -22,7 +32,7 @@ export async function uploadToImageKit(file, onProgress) {
     body.append('signature', auth.signature)
     body.append('expire', String(auth.expire))
     body.append('token', auth.token)
-    body.append('folder', auth.folder)
+    body.append('folder', document ? `${auth.folder}/docs` : auth.folder)
     body.append('useUniqueFileName', 'true')
     const res = await new Promise((resolve, reject) => {
         const xhr = new XMLHttpRequest()
@@ -36,7 +46,7 @@ export async function uploadToImageKit(file, onProgress) {
         xhr.send(body)
     })
     const { item } = await api.post('/admin/media', {
-        url: res.url, fileId: res.fileId, name: res.name, folder: auth.folder, mime: file.type, size: res.size, width: res.width, height: res.height,
+        url: res.url, fileId: res.fileId, name: res.name, folder: document ? `${auth.folder}/docs` : auth.folder, mime: file.type, size: res.size, width: res.width, height: res.height,
     })
     return item
 }
@@ -102,7 +112,7 @@ export function MediaPicker({ open, onClose, onPick, multiple }) {
             >
                 {items === null ? <Spinner /> : items.length === 0 ? <p className="adm-hint">No uploads yet. Drag images here or use Upload.</p> : items.map(m => (
                     <button key={m.id} className={`adm-media-tile${selected.includes(m.url) ? ' selected' : ''}`} onClick={() => toggle(m.url)} title={m.name}>
-                        <img src={thumb(m.url)} alt={m.name} loading="lazy" />
+                        {isImageUrl(m.url) ? <img src={thumb(m.url)} alt={m.name} loading="lazy" /> : <span className="adm-file-tile"><Icon name="book" size={26} /><b>{fileExt(m.url).toUpperCase() || 'FILE'}</b><small>{m.name}</small></span>}
                     </button>
                 ))}
             </div>
@@ -234,6 +244,36 @@ function ImageInput({ value, onChange }) {
     )
 }
 
+/* ---------- Document (PDF, Word, slides…) ---------- */
+function FileInput({ value, onChange }) {
+    const [busy, setBusy] = useState(null)
+    const toast = useToast()
+    const fileRef = useRef()
+    const upload = async f => {
+        if (!f) return
+        setBusy(0)
+        try { onChange((await uploadToImageKit(f, p => setBusy(Math.round(p * 100)), { document: true })).url); toast('Document uploaded') }
+        catch (e) { toast(e.message, 'error') }
+        finally { setBusy(null) }
+    }
+    const name = value ? decodeURIComponent(String(value).split('?')[0].split('/').pop()) : ''
+    return (
+        <div className="adm-file-input" onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); upload(e.dataTransfer.files[0]) }}>
+            <div className="adm-file-badge">{value ? (fileExt(value).toUpperCase() || 'FILE') : '—'}</div>
+            <div className="adm-image-actions">
+                <input className="adm-input" value={value || ''} placeholder="Upload a document, or paste its link" onChange={e => onChange(e.target.value)} />
+                {name && <small className="adm-hint">{name}</small>}
+                <div className="adm-row">
+                    <button type="button" className="adm-btn small" disabled={busy !== null} onClick={() => fileRef.current.click()}>{busy !== null ? `Uploading ${busy}%` : value ? 'Replace' : 'Upload'}</button>
+                    {value && <a className="adm-btn small ghost" href={value} target="_blank" rel="noreferrer">Open</a>}
+                    {value && <button type="button" className="adm-btn small ghost" onClick={() => onChange('')}>Remove</button>}
+                </div>
+                <input ref={fileRef} type="file" accept={ACCEPT_DOC} hidden onChange={e => { upload(e.target.files[0]); e.target.value = '' }} />
+            </div>
+        </div>
+    )
+}
+
 /* ---------- Image list (albums) ---------- */
 function ImagesInput({ value = [], onChange }) {
     const [open, setOpen] = useState(false)
@@ -354,6 +394,7 @@ export function Field({ field, value, onChange, ctx = {} }) {
         case 'html': return <RichText value={value} onChange={onChange} />
         case 'url': return <input {...common} placeholder="/page or https://…" />
         case 'image': return <ImageInput value={value} onChange={onChange} />
+        case 'file': return <FileInput value={value} onChange={onChange} />
         case 'images': return <ImagesInput value={value || []} onChange={onChange} />
         case 'number': return <input {...common} type="number" onChange={e => onChange(e.target.value === '' ? '' : Number(e.target.value))} />
         case 'toggle': return <Switch checked={value} onChange={onChange} />

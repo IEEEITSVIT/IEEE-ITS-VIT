@@ -88,6 +88,7 @@ export const DEFAULT_SETTINGS = {
         moments: { overline: 'Gallery', title: 'Our Moments', subtitle: 'Snapshots from our journey — the events, the people, the memories.' },
         faq: { overline: 'Got Questions?', title: 'Frequently Asked Questions', subtitle: 'Everything you need to know about IEEE ITS - VIT Chapter.' },
         faculty: { overline: 'Guidance', title: 'Faculty Coordinators', subtitle: 'The mentors and guides who make IEEE ITS-VIT possible.' },
+        projects: { overline: 'Build & Learn', title: 'Projects & Resources', subtitle: 'What we have built, how it works — and study material to help you build your own.' },
         advisory: { overline: 'Our Legacy', title: 'Advisory Board', subtitle: 'The boards and web teams who built IEEE ITS VIT, year by year — and who still guide the chapter today.' },
         merch: { overline: 'Official Store', title: 'IEEE ITS Merchandise ', subtitle: 'Rep the chapter. Rock the gear.' },
         games: { overline: 'Chill Zone', title: 'Tech Mini-Games ', subtitle: 'Take a break and sharpen your tech brain with these mini-games!' },
@@ -112,6 +113,7 @@ export const DEFAULT_SETTINGS = {
             '/timeline': { title: 'Events & Timeline', description: 'Every IEEE ITS VIT event at VIT Vellore: workshops, hackathons, Quanta and ic-ETITE, past and upcoming.' },
             '/moments': { title: 'Moments', description: 'Photo albums from IEEE ITS VIT student chapter events at VIT Vellore.' },
             '/faq': { title: 'FAQ', description: 'Questions about joining IEEE ITS VIT, the IEEE Information Theory Society student chapter and technical club at VIT Vellore.' },
+            '/projects': { title: 'Projects & Resources', description: 'Open-source projects by IEEE ITS VIT with architecture and code, plus study resources such as DSA guides for VIT students.' },
             '/advisory-board': { title: 'Advisory Board', description: 'Past boards and web teams of IEEE ITS VIT, the IEEE Information Theory Society student chapter at VIT Vellore, by year.' },
             '/faculty': { title: 'Faculty Coordinators', description: 'Faculty coordinators guiding the IEEE ITS VIT student chapter at VIT Vellore.' },
             '/merch': { title: 'Merchandise', description: 'Book official IEEE ITS VIT merchandise.' },
@@ -359,6 +361,7 @@ export const DEFAULT_CONTENT = {
         { label: 'Events', url: '/timeline' }, { label: 'Moments', url: '/moments' }, { label: 'FAQ', url: '/faq' },
         { label: 'Faculty', url: '/faculty' }, { label: 'Merch', url: '/merch', placement: 'more' }, { label: 'Games', url: '/games', placement: 'more' },
         { label: 'Advisory Board', url: '/advisory-board', placement: 'more' },
+        { label: 'Projects & Resources', url: '/projects', placement: 'more' },
     ],
     footer_links: [
         { group: 'Quick Links', label: 'Home', url: '/' }, { group: 'Quick Links', label: 'Blogs', url: '/blogs' },

@@ -49,7 +49,7 @@ const NAV = [
     },
     { group: 'Events', items: [{ to: '/admin/events', label: 'Events & Timeline', icon: 'calendar' }, { to: '/admin/moments', label: 'Moments (Albums)', icon: 'camera' }] },
     { group: 'People', items: [{ to: '/admin/c/board', label: 'Board Members', icon: 'users' }, { to: '/admin/c/faculty', label: 'Faculty', icon: 'school' }, { to: '/admin/c/advisory', label: 'Advisory Board', icon: 'award' }, { to: '/admin/c/web_team', label: 'Web Team', icon: 'code' }] },
-    { group: 'Publications', items: [{ to: '/admin/c/blogs', label: 'Blogs', icon: 'pen' }, { to: '/admin/c/magazines', label: 'Magazines', icon: 'book' }, { to: '/admin/c/vlogs', label: 'Vlogs', icon: 'video' }, { to: '/admin/c/faqs', label: 'FAQs', icon: 'help' }] },
+    { group: 'Publications', items: [{ to: '/admin/c/projects', label: 'Projects', icon: 'code' }, { to: '/admin/c/resources', label: 'Resources', icon: 'book' }, { to: '/admin/c/blogs', label: 'Blogs', icon: 'pen' }, { to: '/admin/c/magazines', label: 'Magazines', icon: 'book' }, { to: '/admin/c/vlogs', label: 'Vlogs', icon: 'video' }, { to: '/admin/c/faqs', label: 'FAQs', icon: 'help' }] },
     {
         group: 'Store & Inbox', items: [
             { to: '/admin/orders', label: 'Orders', icon: 'box' }, { to: '/admin/queries', label: 'Queries', icon: 'mail' },

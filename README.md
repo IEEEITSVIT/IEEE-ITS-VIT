@@ -75,6 +75,14 @@ SEO — is edited at **`/admin`**, and the site also runs the chapter's **recrui
 - **Excel export** of everything (participants with contacts, teams and links, every judge's scores, results per
   round, qualifiers, winners), then **Delete data** to purge the event.
 
+### Projects & Resources (`/projects`)
+- **Projects:** each opens a short write-up with an **architecture diagram**, the **GitHub** link, a live link, tech
+  stack and status (Admin → Publications → Projects).
+- **Resources:** study material such as a **DSA guide** — upload the document (PDF, Word, PowerPoint, Excel, text,
+  ZIP; stored on ImageKit). Each opens a page with its description and the document shown inline (PDF and Office files),
+  plus open-in-new-tab and download (Admin → Publications → Resources).
+- **Advisory Board** (`/advisory-board`, More menu): past boards and web teams by year, managed in Admin → People.
+
 ### Certificates
 - Design templates by **dragging text onto the certificate image** (snaps to the centre, arrow keys nudge) with
   **10 fonts** (Helvetica, Times, Courier, Great Vibes, Dancing Script, Playfair Display, Cinzel, Montserrat,
@@ -172,6 +180,8 @@ Database changes ship as idempotent statements in `server/schema.sql`; after pul
 | Judge | Add evaluator emails in the portal's Setup; they open `/e/<link>/judge` |
 | Announce results | Portal → **Judging & results** (qualify, publish scores, winners) |
 | Certificates | Portal → **Certificates**, or **Certificates** for an Excel list |
+| Add a project or a study resource | **Projects** / **Resources** (upload the diagram or the document there) |
+| Past boards by year | **Advisory Board** |
 | Export and clean up after an event | Portal → **Export & clean-up** |
 | Watch email sending | **Email Outbox** |
 

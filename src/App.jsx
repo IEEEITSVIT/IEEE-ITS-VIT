@@ -23,6 +23,8 @@ import JoinUs from './pages/JoinUs'
 import Login from './pages/Login'
 import Faculty from './pages/Faculty'
 import AdvisoryBoard from './pages/AdvisoryBoard'
+import ProjectsResources from './pages/ProjectsResources'
+import { ProjectDetail, ResourceDetail } from './pages/ProjectDetail'
 import Games from './pages/Games'
 import Merch from './pages/Merch'
 import WebTeam from './pages/WebTeam'
@@ -84,7 +86,7 @@ function App() {
   // Tests run without the site's navigation so candidates are not pulled away mid-test.
   const focusMode = location.pathname.startsWith('/recruitment/test/')
   // Blog articles share one page component, so keep them under a single transition key.
-  const key = location.pathname.startsWith('/blogs') ? '/blogs' : location.pathname
+  const key = location.pathname.startsWith('/blogs') ? '/blogs' : location.pathname === '/projects' ? '/projects' : location.pathname
 
   return (
     <>
@@ -112,6 +114,9 @@ function App() {
                 <Route path="/login" element={<Login />} />
                 <Route path="/faculty" element={<Faculty />} />
                 <Route path="/advisory-board" element={<AdvisoryBoard />} />
+                <Route path="/projects" element={<ProjectsResources />} />
+                <Route path="/projects/:slug" element={<ProjectDetail />} />
+                <Route path="/resources/:slug" element={<ResourceDetail />} />
                 <Route path="/games" element={<Games />} />
                 <Route path="/merch" element={<Merch />} />
                 <Route path="/web-team" element={<WebTeam />} />

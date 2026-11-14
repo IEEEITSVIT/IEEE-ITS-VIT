@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { api } from '../../lib/api'
-import { uploadToImageKit, thumb } from '../fields'
+import { uploadToImageKit, thumb, isImageUrl, fileExt } from '../fields'
 import { PageTitle, Empty, Spinner, useToast, useConfirm, useLoader, fmtDate } from '../ui'
 import Icon from '../icons'
 
@@ -16,7 +16,8 @@ export default function MediaLibrary() {
         let ok = 0
         for (const [i, f] of [...files].entries()) {
             try {
-                const item = await uploadToImageKit(f, p => setProgress(`${i + 1}/${files.length} · ${Math.round(p * 100)}%`))
+                // Images and documents (PDF, Word, slides…) both go to ImageKit; documents into the docs folder.
+                const item = await uploadToImageKit(f, p => setProgress(`${i + 1}/${files.length} · ${Math.round(p * 100)}%`), { document: !f.type.startsWith('image/') })
                 setData(d => ({ ...d, items: [item, ...d.items] }))
                 ok++
             } catch (e) { toast(e.message, 'error') }
@@ -38,7 +39,7 @@ export default function MediaLibrary() {
             <PageTitle title="Media Library" subtitle="Images are stored on ImageKit (optimised + CDN). Drag files anywhere on this page to upload. When a photo is removed from the site and nothing else uses it, it is deleted from ImageKit automatically.">
                 <input className="adm-input search" placeholder="Search files…" value={q} onChange={e => setQ(e.target.value)} />
                 <button className="adm-btn primary" disabled={!data?.imagekit || !!progress} onClick={() => fileRef.current.click()}>{progress ? `Uploading ${progress}` : '⬆ Upload images'}</button>
-                <input ref={fileRef} type="file" accept="image/*" multiple hidden onChange={e => { upload(e.target.files); e.target.value = '' }} />
+                <input ref={fileRef} type="file" accept="image/*,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.csv,.txt,.md,.zip" multiple hidden onChange={e => { upload(e.target.files); e.target.value = '' }} />
             </PageTitle>
             {data && !data.imagekit && <p className="adm-hint warn">ImageKit is not connected. Add IMAGEKIT_PUBLIC_KEY, IMAGEKIT_PRIVATE_KEY and IMAGEKIT_URL_ENDPOINT to the environment to enable uploads.</p>}
             <div onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); if (data?.imagekit) upload(e.dataTransfer.files) }}>
@@ -46,7 +47,7 @@ export default function MediaLibrary() {
                     <div className="adm-media-grid large">
                         {items.map(m => (
                             <figure key={m.id} className="adm-media-card">
-                                <img src={thumb(m.url)} alt={m.name} loading="lazy" />
+                                {isImageUrl(m.url) ? <img src={thumb(m.url)} alt={m.name} loading="lazy" /> : <span className="adm-file-tile"><Icon name="book" size={26} /><b>{fileExt(m.url).toUpperCase() || 'FILE'}</b></span>}
                                 <figcaption>
                                     <strong title={m.name}>{m.name || 'image'}</strong>
                                     <small>{m.width ? `${m.width}×${m.height} · ` : ''}{m.size ? `${Math.round(m.size / 1024)} KB · ` : ''}{fmtDate(m.created_at)}</small>

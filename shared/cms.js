@@ -124,6 +124,38 @@ export const CONTENT_TYPES = {
             { name: 'linkedin', label: 'LinkedIn URL', type: 'url' },
         ],
     },
+    projects: {
+        label: 'Projects', singular: 'Project', group: 'Publications', title: 'title', image: 'image',
+        help: 'Projects shown on the Projects & Resources page. Each opens as a short write-up with its architecture diagram and GitHub link.',
+        fields: [
+            { name: 'title', label: 'Title', type: 'text', required: true },
+            { name: 'slug', label: 'URL slug (optional)', type: 'text', help: 'Leave empty to make it from the title.' },
+            { name: 'tagline', label: 'One-line summary', type: 'textarea' },
+            { name: 'status', label: 'Status', type: 'select', options: ['Live', 'In development', 'Completed', 'Archived'] },
+            { name: 'year', label: 'Year', type: 'text' },
+            { name: 'github', label: 'GitHub repository', type: 'url' },
+            { name: 'live', label: 'Live site (optional)', type: 'url' },
+            { name: 'tech', label: 'Tech stack (one per line)', type: 'strings' },
+            { name: 'image', label: 'Card image (optional — the diagram is used when empty)', type: 'image' },
+            { name: 'diagram', label: 'Architecture diagram', type: 'image' },
+            { name: 'body', label: 'Write-up', type: 'html' },
+        ],
+    },
+    resources: {
+        label: 'Resources', singular: 'Resource', group: 'Publications', title: 'title', image: 'image',
+        help: 'Guides, notes and documents (e.g. a DSA guide) on the Projects & Resources page. Upload the document and add a short description.',
+        fields: [
+            { name: 'title', label: 'Title', type: 'text', required: true },
+            { name: 'slug', label: 'URL slug (optional)', type: 'text', help: 'Leave empty to make it from the title.' },
+            { name: 'category', label: 'Type', type: 'select', options: ['Guide', 'Notes', 'Slides', 'Roadmap', 'Cheat sheet', 'Question bank', 'Other'] },
+            { name: 'summary', label: 'Short description', type: 'textarea' },
+            { name: 'file', label: 'Document (PDF, Word, PowerPoint, Excel, text, ZIP — up to 25 MB)', type: 'file' },
+            { name: 'link', label: 'External link (optional)', type: 'url' },
+            { name: 'tags', label: 'Topics (one per line)', type: 'strings' },
+            { name: 'image', label: 'Cover image (optional)', type: 'image' },
+            { name: 'body', label: 'About this resource', type: 'html' },
+        ],
+    },
     advisory: {
         label: 'Advisory Board (past boards)', singular: 'Past member', group: 'People', title: 'name', image: 'image',
         help: 'Previous boards and web teams, shown by year on the Advisory Board page (More menu). Give everyone in one board the same year, e.g. 2024-2025.',
@@ -301,7 +333,7 @@ export const SETTINGS_FORMS = {
         ],
     },
     pages: {
-        label: 'Page Headers', fields: ['blogs', 'vlogs', 'timeline', 'moments', 'faq', 'faculty', 'advisory', 'merch', 'games', 'webteam', 'suggestions', 'contact', 'join']
+        label: 'Page Headers', fields: ['blogs', 'vlogs', 'timeline', 'moments', 'faq', 'faculty', 'advisory', 'projects', 'merch', 'games', 'webteam', 'suggestions', 'contact', 'join']
             .flatMap(p => [
                 { name: `${p}.overline`, label: `${p} · overline`, type: 'text' },
                 { name: `${p}.title`, label: `${p} · title`, type: 'text' },

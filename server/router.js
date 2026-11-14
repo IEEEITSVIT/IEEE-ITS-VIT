@@ -58,6 +58,7 @@ function cleanField(field, value) {
     switch (field.type) {
         case 'url': return safeUrl(value)
         case 'image': return safeUrl(value)
+        case 'file': return safeUrl(value)
         case 'images': return (Array.isArray(value) ? value : []).map(safeUrl).filter(Boolean).slice(0, 200)
         case 'number': return value === '' || value == null ? null : Number(value) || 0
         case 'toggle': return !!value
@@ -216,7 +217,7 @@ route('GET', '/api/sitemap.xml', async ({ req, res }) => {
     const db = getDb()
     const [{ site, recruitment }, events, blogs, portals, touched] = await Promise.all([
         loadSettings(['site', 'recruitment']), loadEvents(),
-        db.all("SELECT data, updated_at FROM content WHERE type = 'blogs' AND status = 'published'"),
+        db.all("SELECT type, data, updated_at FROM content WHERE type IN ('blogs', 'projects', 'resources') AND status = 'published'"),
         db.all("SELECT slug, title, config, updated_at FROM ev_portals WHERE status != 'draft'"),
         db.first("SELECT MAX(t) t FROM (SELECT MAX(updated_at) t FROM content UNION ALL SELECT MAX(updated_at) FROM settings UNION ALL SELECT MAX(updated_at) FROM events)"),
     ])
@@ -226,7 +227,7 @@ route('GET', '/api/sitemap.xml', async ({ req, res }) => {
     const abs = u => (!u ? '' : /^https?:/i.test(u) ? u : `${base}${u.startsWith('/') ? '' : '/'}${u}`)
     const pages = [
         ['/', '1.0', 'weekly'], ['/timeline', '0.9', 'weekly'], ['/moments', '0.7', 'monthly'], ['/blogs', '0.7', 'weekly'],
-        ['/vlogs', '0.6', 'monthly'], ['/faculty', '0.6', 'yearly'], ['/advisory-board', '0.6', 'yearly'], ['/web-team', '0.5', 'yearly'], ['/merch', '0.6', 'monthly'],
+        ['/vlogs', '0.6', 'monthly'], ['/faculty', '0.6', 'yearly'], ['/advisory-board', '0.6', 'yearly'], ['/projects', '0.8', 'weekly'], ['/web-team', '0.5', 'yearly'], ['/merch', '0.6', 'monthly'],
         ['/games', '0.4', 'yearly'], ['/faq', '0.6', 'monthly'], ['/join', '0.7', 'monthly'], ['/contact', '0.6', 'yearly'],
         ['/suggestions', '0.4', 'yearly'], ...(recruitment?.open ? [['/recruitment', '0.9', 'daily']] : []),
     ]
@@ -242,7 +243,8 @@ route('GET', '/api/sitemap.xml', async ({ req, res }) => {
         }),
         ...blogs.map(b => {
             const d = parseJson(b.data, {})
-            return { loc: `${base}/blogs/${d.slug || slugify(d.title)}`, lastmod: day(b.updated_at), changefreq: 'monthly', priority: '0.6', image: abs(d.image), title: d.title }
+            const path = { blogs: 'blogs', projects: 'projects', resources: 'resources' }[b.type]
+            return { loc: `${base}/${path}/${d.slug || slugify(d.title)}`, lastmod: day(b.updated_at), changefreq: 'monthly', priority: b.type === 'blogs' ? '0.6' : '0.7', image: abs(d.image || d.diagram), title: d.title }
         }),
     ]
     const x = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' }[c]))
