@@ -56,6 +56,7 @@ SEO — is edited at **`/admin`**, and the site also runs the chapter's **recrui
 - Optional **timed test** per domain (multiple choice auto-scored; written answers scored by the admin), run full
   screen with autosave; leaving the tab/full screen is recorded. Optional **external proctored exam link** with
   its own deadline.
+- Admin: **edit any candidate** — name, email, registration number, phone, which domains they are in and the status in each.
 - Admin: filter by domain/status/score, pick the top N, **mark for interview**, **select** (one person can be
   selected for several domains), **add and select directly without a test**, or **import a manually made
   selection list from Excel** (optionally as the final list for those domains). Everything is in the audit log.
@@ -175,6 +176,7 @@ Database changes ship as idempotent statements in `server/schema.sql`; after pul
 | Add domains, deadlines, tests, WhatsApp links | **Recruitment → Domains & tests** |
 | Shortlist / select candidates | **Recruitment → Applicants** (filters, *Pick top N*, bulk buttons) |
 | Upload an offline selection list | **Recruitment → Import Excel** (template downloadable there) |
+| Fix a candidate's name, email, reg no or phone, or change their domains | **Recruitment → Applicants** → click the name (**Edit**) |
 | Send results / reminders | **Recruitment → Emails** (wording in **Recruitment Emails**) |
 | Run a hackathon | **Event Portals → New event portal** → Setup → status *Open* → share `/e/<link>` |
 | Judge | Add evaluator emails in the portal's Setup; they open `/e/<link>/judge` |

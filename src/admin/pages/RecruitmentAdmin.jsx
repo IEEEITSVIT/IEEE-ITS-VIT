@@ -148,6 +148,77 @@ function ApplicantDrawer({ id, onClose, onChanged }) {
     )
 }
 
+/* ---------- edit everything about one candidate ---------- */
+function CandidateEditor({ userId, domains, onClose, onChanged, onAnswers }) {
+    const toast = useToast()
+    const confirm = useConfirm()
+    const [f, setF] = useState(null)
+    const [apps, setApps] = useState({}) // domainId → { status, appId, score }
+    const [original, setOriginal] = useState([]) // domains the candidate was in when the window opened
+    const [busy, setBusy] = useState(false)
+    useEffect(() => {
+        api.get(`/admin/recruitment/candidates/${userId}`).then(r => {
+            setF({ name: r.person.name, email: r.person.email, regNo: r.person.reg_no || '', mobile: r.person.mobile || '' })
+            setOriginal(r.applications.map(a => a.domain_id))
+            setApps(Object.fromEntries(r.applications.map(a => [a.domain_id, { status: a.status, appId: a.id, hasTest: !!a.test_submitted_at,
+                score: a.auto_score == null && a.manual_score == null ? null : (a.auto_score ?? 0) + (a.manual_score ?? 0), max: a.max_score }])))
+        }).catch(e => toast(e.message, 'error'))
+    }, [userId, toast])
+    const toggle = (id, on) => setApps(a => { const n = { ...a }; if (on) n[id] = { ...(a[id] || {}), status: a[id]?.status || 'selected' }; else delete n[id]; return n })
+    const save = async () => {
+        const lost = original.filter(id => !apps[id])
+        if (lost.length && !await confirm(`Remove ${f.name} from ${lost.map(id => domains.find(d => d.id === id)?.title).join(', ')}? Their answers and scores for ${lost.length > 1 ? 'those domains' : 'that domain'} are deleted.`, { okLabel: 'Remove and save' })) return
+        setBusy(true)
+        try {
+            const r = await api.put(`/admin/recruitment/candidates/${userId}`, { name: f.name, email: f.email, regNo: f.regNo, mobile: f.mobile, domains: Object.entries(apps).map(([domainId, a]) => ({ domainId: Number(domainId), status: a.status })) })
+            toast(r.changes.length ? `Saved — ${r.changes.length} change${r.changes.length > 1 ? 's' : ''} recorded in the audit log` : 'No changes')
+            onChanged(); onClose()
+        } catch (e) { toast(e.message, 'error') } finally { setBusy(false) }
+    }
+    return (
+        <Drawer open wide title={f ? `Edit candidate · ${f.name}` : 'Edit candidate'} onClose={onClose}
+            footer={<><button className="adm-btn ghost" onClick={onClose}>Cancel</button><button className="adm-btn primary" disabled={!f || busy} onClick={save}>{busy ? 'Saving…' : 'Save changes'}</button></>}>
+            {!f ? <Spinner /> : (
+                <div className="adm-form">
+                    <div className="adm-grid-2">
+                        <label className="adm-field"><span>Full name</span><input className="adm-input" value={f.name} onChange={e => setF(x => ({ ...x, name: e.target.value }))} /></label>
+                        <label className="adm-field"><span>Email (used to sign in)</span><input className="adm-input" type="email" value={f.email} onChange={e => setF(x => ({ ...x, email: e.target.value }))} /></label>
+                        <label className="adm-field"><span>Registration no.</span><input className="adm-input" value={f.regNo} onChange={e => setF(x => ({ ...x, regNo: e.target.value.toUpperCase().replace(/\s/g, '') }))} /></label>
+                        <label className="adm-field"><span>Mobile</span><input className="adm-input" inputMode="numeric" value={f.mobile} onChange={e => setF(x => ({ ...x, mobile: e.target.value.replace(/\D/g, '').slice(0, 10) }))} placeholder="10 digits" /></label>
+                    </div>
+                    <fieldset className="adm-fieldset"><legend>Domains and status</legend>
+                        <div className="adm-table-wrap">
+                            <table className="adm-table">
+                                <thead><tr><th>In domain</th><th>Domain</th><th>Status</th><th>Score</th><th /></tr></thead>
+                                <tbody>
+                                    {domains.map(d => {
+                                        const a = apps[d.id]
+                                        return (
+                                            <tr key={d.id} className={a ? 'sel' : ''}>
+                                                <td><input type="checkbox" checked={!!a} onChange={e => toggle(d.id, e.target.checked)} aria-label={`${f.name} in ${d.title}`} /></td>
+                                                <td><strong>{d.title}</strong></td>
+                                                <td>
+                                                    <select className="adm-input" disabled={!a} value={a?.status || ''} onChange={e => setApps(x => ({ ...x, [d.id]: { ...x[d.id], status: e.target.value } }))}>
+                                                        {!a && <option value="">—</option>}
+                                                        {Object.entries(STATUS).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+                                                    </select>
+                                                </td>
+                                                <td>{a?.score == null ? '—' : `${a.score}${a.max ? ` / ${a.max}` : ''}`}</td>
+                                                <td>{a?.appId && original.includes(d.id) && <button className="adm-btn small ghost" onClick={() => onAnswers(a.appId)}>Answers</button>}</td>
+                                            </tr>
+                                        )
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+                        <p className="adm-hint">Tick a domain to add the candidate to it (no test needed); untick to remove them. Every change is recorded in the audit log.</p>
+                    </fieldset>
+                </div>
+            )}
+        </Drawer>
+    )
+}
+
 function DirectAdd({ domains, onClose, onDone }) {
     const toast = useToast()
     const [f, setF] = useState({ name: '', email: '', regNo: '', mobile: '', note: '', domainIds: [] })
@@ -380,6 +451,7 @@ export default function RecruitmentAdmin() {
     const [apps, setApps] = useState([])
     const [editing, setEditing] = useState(null)
     const [viewing, setViewing] = useState(null)
+    const [editingPerson, setEditingPerson] = useState(null)
     const [direct, setDirect] = useState(false)
     const [importing, setImporting] = useState(false)
     const [f, setF] = useState({ domain: '', status: '', min: '', q: '', sort: 'score' })
@@ -471,7 +543,14 @@ export default function RecruitmentAdmin() {
                                     {rows.slice(0, 1000).map(a => (
                                         <tr key={a.id} className={sel.includes(a.id) ? 'sel' : ''}>
                                             <td><input type="checkbox" checked={sel.includes(a.id)} onChange={e => setSel(s => (e.target.checked ? [...s, a.id] : s.filter(x => x !== a.id)))} aria-label={`Select ${a.name}`} /></td>
-                                            <td><button className="adm-link" onClick={() => setViewing(a.id)}><strong>{a.name}</strong></button><small className="adm-block">{a.email} · {a.mobile || 'no mobile'}</small></td>
+                                            <td>
+                                                <button className="adm-link" onClick={() => (isAdmin ? setEditingPerson(a.user_id) : setViewing(a.id))} title={isAdmin ? 'Edit candidate' : 'View application'}><strong>{a.name}</strong></button>
+                                                <small className="adm-block">{a.email} · {a.mobile || 'no mobile'}</small>
+                                                <span className="adm-row" style={{ marginTop: 4 }}>
+                                                    {isAdmin && <button className="adm-btn small ghost" onClick={() => setEditingPerson(a.user_id)}>Edit</button>}
+                                                    <button className="adm-btn small ghost" onClick={() => setViewing(a.id)}>Answers</button>
+                                                </span>
+                                            </td>
                                             <td>{a.reg_no || '—'}</td>
                                             <td>{title[a.domain_id]}</td>
                                             <td><Badge tone={TONE[a.status]}>{STATUS[a.status]}</Badge>{a.source !== 'portal' && <small className="adm-block">{a.source === 'import' ? 'imported from Excel' : 'added directly'}</small>}</td>
@@ -513,6 +592,7 @@ export default function RecruitmentAdmin() {
             {tab === 'settings' && <SettingsTab onReset={load} />}
 
             {editing && <DomainDrawer domain={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); load() }} />}
+            {editingPerson && <CandidateEditor userId={editingPerson} domains={domains} onClose={() => setEditingPerson(null)} onChanged={load} onAnswers={id => { setEditingPerson(null); setViewing(id) }} />}
             {viewing && <ApplicantDrawer id={viewing} onClose={() => setViewing(null)} onChanged={load} />}
             {importing && <ImportSelections domains={domains} onClose={() => setImporting(false)} onDone={load} />}
             {direct && <DirectAdd domains={domains} onClose={() => setDirect(false)} onDone={() => { setDirect(false); load() }} />}

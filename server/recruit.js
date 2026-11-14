@@ -388,6 +388,69 @@ export function installRecruitment({ route, requireRole, audit, loadSettings }) 
         return { changed }
     })
 
+    /* One candidate with all their domain applications (for the admin's Edit candidate window). */
+    route('GET', '/api/admin/recruitment/candidates/:userId', async ({ user, params }) => {
+        requireRole(user, 'editor')
+        const person = await db().first('SELECT id, name, email, reg_no, mobile, member_type FROM users WHERE id = ?', [Number(params.userId)])
+        if (!person) fail(404, 'Candidate not found.')
+        const apps = await db().all(`SELECT id, domain_id, status, source, auto_score, manual_score, max_score, note, test_submitted_at, created_at
+            FROM rec_applications WHERE user_id = ? ORDER BY id`, [person.id])
+        return { person, applications: apps }
+    })
+
+    /*
+     * Edit everything about a candidate: name, email, reg no, mobile, which domains they are in and the
+     * status in each. Domains left out of the list are removed from the candidate (with their answers).
+     */
+    route('PUT', '/api/admin/recruitment/candidates/:userId', async ({ user, params, body }) => {
+        requireRole(user, 'admin')
+        const person = await db().first('SELECT * FROM users WHERE id = ?', [Number(params.userId)])
+        if (!person) fail(404, 'Candidate not found.')
+        const name = str(body.name, 120)
+        const email = str(body.email, 200).toLowerCase()
+        const mobile = str(body.mobile, 20).replace(/\D/g, '').slice(-10)
+        const regNo = str(body.regNo, 12).toUpperCase().replace(/\s/g, '')
+        if (name.length < 2) fail(400, 'Enter the full name.')
+        if (!isEmail(email)) fail(400, 'Enter a valid email address.')
+        if (mobile && mobile.length !== 10) fail(400, 'Mobile number must be 10 digits.')
+        if (email !== person.email.toLowerCase() && await db().first('SELECT id FROM users WHERE email = ? AND id != ?', [email, person.id])) fail(409, 'Another account already uses that email.')
+        const valid = new Set((await db().all('SELECT id FROM rec_domains')).map(d => d.id))
+        const wanted = new Map()
+        for (const d of Array.isArray(body.domains) ? body.domains : []) {
+            const id = Number(d.domainId)
+            if (!valid.has(id)) continue
+            wanted.set(id, { status: STATUSES.includes(d.status) ? d.status : 'applied', note: d.note === undefined ? undefined : str(d.note, 2000),
+                manual: d.manualScore === undefined ? undefined : d.manualScore === '' || d.manualScore === null ? null : Number(d.manualScore) || 0 })
+        }
+        const changes = []
+        for (const [k, a, b] of [['name', person.name, name], ['email', person.email, email], ['reg no', person.reg_no || '', regNo], ['mobile', person.mobile || '', mobile]]) if (String(a) !== String(b)) changes.push(`${k}: "${a}" → "${b}"`)
+        await db().run("UPDATE users SET name = ?, email = ?, reg_no = ?, mobile = ?, member_type = CASE WHEN role = 'member' THEN ? ELSE member_type END, updated_at = datetime('now') WHERE id = ?",
+            [name, email, regNo, mobile, isVit(email) ? 'VIT Student' : 'External Member', person.id])
+        const titles = Object.fromEntries((await db().all('SELECT id, title FROM rec_domains')).map(d => [d.id, d.title]))
+        const current = await db().all('SELECT id, domain_id, status FROM rec_applications WHERE user_id = ?', [person.id])
+        for (const a of current) {
+            if (!wanted.has(a.domain_id)) {
+                await db().run('DELETE FROM rec_applications WHERE id = ?', [a.id])
+                changes.push(`removed from ${titles[a.domain_id]}`)
+                continue
+            }
+            const w = wanted.get(a.domain_id)
+            const sets = ['status = ?'], vals = [w.status]
+            if (w.note !== undefined) { sets.push('note = ?'); vals.push(w.note) }
+            if (w.manual !== undefined) { sets.push('manual_score = ?'); vals.push(w.manual) }
+            await db().run(`UPDATE rec_applications SET ${sets.join(', ')}, updated_at = datetime('now') WHERE id = ?`, [...vals, a.id])
+            if (a.status !== w.status) changes.push(`${titles[a.domain_id]}: ${a.status} → ${w.status}`)
+            wanted.delete(a.domain_id)
+        }
+        for (const [domainId, w] of wanted) {
+            await db().run("INSERT INTO rec_applications (user_id, domain_id, status, source, note, manual_score) VALUES (?, ?, ?, 'direct', ?, ?)",
+                [person.id, domainId, w.status, w.note || 'Added by admin', w.manual ?? null])
+            changes.push(`added to ${titles[domainId]} (${w.status})`)
+        }
+        await audit(user, 'edit', 'recruitment-candidate', person.id, `${email}: ${changes.length ? changes.join('; ') : 'no changes'}`)
+        return { ok: true, changes }
+    })
+
     route('DELETE', '/api/admin/recruitment/applications', async ({ user, body }) => {
         requireRole(user, 'admin')
         if (body.confirm !== 'DELETE') fail(400, 'Type DELETE to confirm.')
