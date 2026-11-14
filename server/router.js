@@ -312,7 +312,7 @@ route('POST', '/api/subscribe', async ({ body }) => {
 /* ── auth ── */
 /* Accounts created by an admin (recruitment "add directly" or Excel import) have no password yet. */
 const INVITED = 'invited'
-const SET_PASSWORD_MSG = 'Welcome! IEEE ITS VIT has already created an account for this email. Set your password to sign in — we will email you a 6-digit code.'
+const SET_PASSWORD_MSG = 'Welcome! IEEE ITS VIT has already created an account for this email. Set your password to sign in — we will email you a 6-digit code (if it is not in your inbox, check your Spam / Junk folder).'
 
 route('POST', '/api/auth/register', async ({ req, res, body }) => {
     const name = str(body.name, 120)
@@ -397,7 +397,7 @@ route('POST', '/api/auth/forgot', async ({ req, body }) => {
         const sent = await sendPasswordResetCode(user, code, link, { setup })
         if (!sent.ok) console.error('[reset] email failed:', sent.error)
     }
-    return { ok: true, message: 'If an account exists for that email, a 6-digit code is on its way.' }
+    return { ok: true, message: 'If an account exists for that email, a 6-digit code is on its way. Not in your inbox within a minute? Check your Spam / Junk folder (and Promotions in Gmail).' }
 })
 
 route('POST', '/api/auth/reset', async ({ req, res, body }) => {

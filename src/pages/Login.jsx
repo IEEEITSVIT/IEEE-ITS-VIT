@@ -49,7 +49,7 @@ function ForgotPassword({ initialEmail, initialCode, setup, notice, onDone, onBa
             <h1 className="display h-md" style={{ marginTop: 14 }}>{setup ? 'Set your password' : 'Reset password'}</h1>
             {notice && <p className="notice ok" style={{ marginTop: 14 }}>{notice}</p>}
             <p className="muted" style={{ margin: '12px 0 22px' }}>
-                {step === 'email' ? (setup ? 'We will email a 6-digit code to this address to confirm it is yours, then you choose a password.' : 'Enter your account email and we will send you a 6-digit code.') : linkCode && code === linkCode ? <>Choose a new password for <b style={{ color: 'var(--text)' }}>{email}</b>.</> : <>Enter the code sent to <b style={{ color: 'var(--text)' }}>{email}</b> and choose a new password.</>}
+                {step === 'email' ? (setup ? 'We will email a 6-digit code to this address to confirm it is yours, then you choose a password. If it is not in your inbox, check Spam / Junk.' : 'Enter your account email and we will send you a 6-digit code. It can take a minute — if it is not in your inbox, check Spam / Junk.') : linkCode && code === linkCode ? <>Choose a new password for <b style={{ color: 'var(--text)' }}>{email}</b>.</> : <>Enter the code sent to <b style={{ color: 'var(--text)' }}>{email}</b> and choose a new password.</>}
             </p>
             {step === 'email' ? (
                 <form className="form" onSubmit={sendCode}>
@@ -67,6 +67,7 @@ function ForgotPassword({ initialEmail, initialCode, setup, notice, onDone, onBa
                     <label className="field"><span>Confirm new password</span><input type="password" value={pw.confirm} onChange={e => setPw(x => ({ ...x, confirm: e.target.value }))} required autoComplete="new-password" /></label>
                     <button className="btn solid" disabled={busy || code.length !== 6}>{busy ? 'Saving…' : setup ? 'Set password and sign in' : 'Reset password'} <span className="arr">→</span></button>
                     {msg && <p className={`notice ${msg.ok ? 'ok' : 'err'}`} role="alert">{msg.t}</p>}
+                    {!(linkCode && code === linkCode) && <p className="muted" style={{ fontSize: '.85rem', margin: 0 }}>Can't find the email? Check your <b>Spam / Junk</b> folder (and <b>Promotions</b> in Gmail) and mark it "Not spam". The code expires in 10 minutes.</p>}
                     <button type="button" className="btn sm" disabled={busy || cooldown > 0} onClick={sendCode} style={{ alignSelf: 'flex-start' }}>
                         {cooldown > 0 ? `Resend code in ${cooldown}s` : 'Resend code'}
                     </button>

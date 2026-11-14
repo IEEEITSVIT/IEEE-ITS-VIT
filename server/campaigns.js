@@ -85,7 +85,8 @@ export async function processCampaigns() {
         for (const r of slice) {
             try {
                 const subject = fillTemplate(camp.subject, r.vars)
-                await mailer.send({ to: r.email, subject, html: messageHtml(subject, fillTemplate(camp.body, r.vars)) })
+                const text = fillTemplate(camp.body, r.vars)
+                await mailer.send({ to: r.email, subject, html: messageHtml(subject, text), text })
                 sent++
             } catch (e) { failures.push({ email: r.email, error: String(e.message).slice(0, 200) }) }
         }
@@ -117,7 +118,7 @@ export async function sendDirect({ to, subject, text, attachments }) {
     const mailer = await openTransport()
     if (!mailer) fail(503, 'SMTP is not configured — set it up in Admin → Email & SMTP.')
     try {
-        await mailer.send({ to, subject, html: messageHtml(subject, text), attachments })
+        await mailer.send({ to, subject, html: messageHtml(subject, text), text, attachments })
         await getDb().run("INSERT INTO email_logs (kind, recipient, subject, status) VALUES ('certificate', ?, ?, 'sent')", [to, subject])
     } catch (e) {
         await getDb().run("INSERT INTO email_logs (kind, recipient, subject, status, error) VALUES ('certificate', ?, ?, 'failed', ?)", [to, subject, String(e.message).slice(0, 300)])

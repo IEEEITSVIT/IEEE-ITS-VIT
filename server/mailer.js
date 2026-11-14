@@ -9,6 +9,15 @@ import { decrypt } from './auth.js'
 import { emailList } from './http.js'
 import { DEFAULT_PRIVATE_SETTINGS } from '../shared/defaults.js'
 
+/** Plain-text copy of an HTML email (sent alongside it: HTML-only mail is more likely to be filtered as spam). */
+export const htmlToText = html => String(html || '')
+    .replace(/<style[\s\S]*?<\/style>/gi, '')
+    .replace(/<a [^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi, (_, href, label) => (label.replace(/<[^>]+>/g, '').trim() === href ? href : `${label.replace(/<[^>]+>/g, '').trim()}: ${href}`))
+    .replace(/<br\s*\/?>/gi, '\n').replace(/<\/(p|div|tr|h\d|li)>/gi, '\n').replace(/<\/td>/gi, '  ')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&')
+    .split('\n').map(l => l.replace(/[ \t]+/g, ' ').trim()).join('\n').replace(/\n{3,}/g, '\n\n').trim()
+
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
 
 async function getSetting(key) {
@@ -57,7 +66,7 @@ async function log(kind, recipient, subject, status, error = '') {
     } catch (e) { console.error('[mail] could not write log', e.message) }
 }
 
-export async function sendMail({ kind, to, subject, html, replyTo, profile = 'main' }) {
+export async function sendMail({ kind, to, subject, html, text, replyTo, profile = 'main' }) {
     const recipients = Array.isArray(to) ? to : emailList(to)
     if (!recipients.length) { await log(kind, '-', subject, 'skipped', 'No recipient configured'); return { ok: false, error: 'No recipient configured' } }
     const cfg = await smtpConfig(profile)
@@ -73,7 +82,7 @@ export async function sendMail({ kind, to, subject, html, replyTo, profile = 'ma
         })
         await transport.sendMail({
             from: `"${cfg.fromName.replace(/"/g, '')}" <${cfg.fromEmail}>`,
-            to: recipients.join(', '), subject, html, replyTo,
+            to: recipients.join(', '), subject, html, text: text || htmlToText(html), replyTo,
         })
         await log(kind, recipients.join(', '), subject, 'sent')
         return { ok: true }
@@ -192,7 +201,7 @@ export async function openTransport() {
     })
     const from = `"${cfg.fromName.replace(/"/g, '')}" <${cfg.fromEmail}>`
     return {
-        send: ({ to, subject, html, attachments }) => transport.sendMail({ from, to, subject, html, attachments }),
+        send: ({ to, subject, html, text, attachments }) => transport.sendMail({ from, to, subject, html, text: text || htmlToText(html), attachments }),
         close: () => transport.close(),
     }
 }

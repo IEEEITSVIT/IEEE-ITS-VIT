@@ -57,7 +57,7 @@ export default function Merch() {
                     ) : (
                         <p className="notice" style={{ marginBottom: 28 }}>Sign in to book merchandise. <Link to="/login?next=/merch" className="accent">Sign in →</Link></p>
                     )}
-                    {done && <p className="notice ok" role="status" style={{ marginBottom: 24 }}>Booking confirmed — a confirmation has been sent to your email.</p>}
+                    {done && <p className="notice ok" role="status" style={{ marginBottom: 24 }}>Booking confirmed — a confirmation has been sent to your email (check Spam / Junk if you don't see it).</p>}
 
                     {tab === 'shop' ? (
                         <div className="grid g-3">
