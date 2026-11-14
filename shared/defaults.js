@@ -185,6 +185,8 @@ export const DEFAULT_PRIVATE_SETTINGS = {
         selectedBody: 'Hi {{name}},\n\nCongratulations! You have been selected to join IEEE ITS VIT in: {{domains}}.\n\nPlease join your domain group on WhatsApp:\n{{whatsapp}}\n\nWe are excited to work with you. Welcome to the chapter!\n\nIEEE ITS VIT',
         notSelectedSubject: 'IEEE ITS VIT recruitment — thank you',
         notSelectedBody: 'Hi {{name}},\n\nThank you for applying to IEEE ITS VIT ({{domains}}) and for the time and effort you put into the process. We received many strong applications and had only a few places this round, so we are not able to offer you a position right now.\n\nThis is not a measure of your potential. Our events, workshops and hackathons stay open to you, and we would genuinely love to see you apply again in the next recruitment.\n\nWishing you the very best,\nIEEE ITS VIT',
+        inviteSubject: 'Your IEEE ITS VIT account is ready — set your password',
+        inviteBody: 'Hi {{name}},\n\nIEEE ITS VIT has created an account for you ({{domains}}).\n\nSet your password here — we will email you a 6-digit code to confirm it is you:\n{{link}}\n\nSign in with this email address: {{email}}\n\nSee you soon!\nIEEE ITS VIT',
         reminderSubject: 'Reminder: {{domain}} — IEEE ITS VIT recruitment',
         reminderBody: 'Hi {{name}},\n\nA quick reminder about your IEEE ITS VIT application ({{domain}}).\n\nDeadlines:\n{{deadline}}\n\n{{exam}}\n\nAll the best!\nIEEE ITS VIT',
     },

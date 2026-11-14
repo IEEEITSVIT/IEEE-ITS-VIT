@@ -1,13 +1,14 @@
 /* Minimal request/response helpers shared by the Vercel function and the Vite dev middleware. */
 
 export class HttpError extends Error {
-    constructor(status, message) {
+    constructor(status, message, code) {
         super(message)
         this.status = status
+        this.code = code // optional machine-readable reason for the client, e.g. SET_PASSWORD
     }
 }
 
-export const fail = (status, message) => { throw new HttpError(status, message) }
+export const fail = (status, message, code) => { throw new HttpError(status, message, code) }
 
 export function send(res, status, body, headers = {}) {
     if (res.headersSent) return

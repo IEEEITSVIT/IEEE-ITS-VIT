@@ -158,7 +158,7 @@ function CandidateEditor({ userId, domains, onClose, onChanged, onAnswers }) {
     const [busy, setBusy] = useState(false)
     useEffect(() => {
         api.get(`/admin/recruitment/candidates/${userId}`).then(r => {
-            setF({ name: r.person.name, email: r.person.email, regNo: r.person.reg_no || '', mobile: r.person.mobile || '' })
+            setF({ name: r.person.name, email: r.person.email, regNo: r.person.reg_no || '', mobile: r.person.mobile || '', invited: !!r.person.invited })
             setOriginal(r.applications.map(a => a.domain_id))
             setApps(Object.fromEntries(r.applications.map(a => [a.domain_id, { status: a.status, appId: a.id, hasTest: !!a.test_submitted_at,
                 score: a.auto_score == null && a.manual_score == null ? null : (a.auto_score ?? 0) + (a.manual_score ?? 0), max: a.max_score }])))
@@ -180,6 +180,10 @@ function CandidateEditor({ userId, domains, onClose, onChanged, onAnswers }) {
             footer={<><button className="adm-btn ghost" onClick={onClose}>Cancel</button><button className="adm-btn primary" disabled={!f || busy} onClick={save}>{busy ? 'Saving…' : 'Save changes'}</button></>}>
             {!f ? <Spinner /> : (
                 <div className="adm-form">
+                    {f.invited && (
+                        <p className="adm-hint warn">This account was created by an admin and has no password yet. They set one the first time they sign in or register with this email (a code is emailed to them).
+                            {' '}<button type="button" className="adm-link" onClick={() => api.post('/admin/recruitment/invite', { emails: [f.email] }).then(() => toast('Set-password email queued')).catch(e => toast(e.message, 'error'))}>Email them the link now</button></p>
+                    )}
                     <div className="adm-grid-2">
                         <label className="adm-field"><span>Full name</span><input className="adm-input" value={f.name} onChange={e => setF(x => ({ ...x, name: e.target.value }))} /></label>
                         <label className="adm-field"><span>Email (used to sign in)</span><input className="adm-input" type="email" value={f.email} onChange={e => setF(x => ({ ...x, email: e.target.value }))} /></label>
@@ -222,9 +226,15 @@ function CandidateEditor({ userId, domains, onClose, onChanged, onAnswers }) {
 function DirectAdd({ domains, onClose, onDone }) {
     const toast = useToast()
     const [f, setF] = useState({ name: '', email: '', regNo: '', mobile: '', note: '', domainIds: [] })
+    const [invite, setInvite] = useState(true)
     const save = async e => {
         e.preventDefault()
-        try { await api.post('/admin/recruitment/direct', f); toast('Candidate added and selected — recorded in the audit log'); onDone() } catch (err) { toast(err.message, 'error') }
+        try {
+            const r = await api.post('/admin/recruitment/direct', f)
+            if (invite && r.needsPassword) await api.post('/admin/recruitment/invite', { emails: [r.email] })
+            toast(invite && r.needsPassword ? 'Added and selected — an email to set their password is queued' : 'Candidate added and selected — recorded in the audit log')
+            onDone()
+        } catch (err) { toast(err.message, 'error') }
     }
     return (
         <Modal open onClose={onClose} title="Add and select directly (no test)">
@@ -241,7 +251,8 @@ function DirectAdd({ domains, onClose, onDone }) {
                     ))}</div>
                 </div>
                 <label className="adm-field"><span>Reason (saved in the audit log)</span><input className="adm-input" value={f.note} onChange={e => setF(x => ({ ...x, note: e.target.value }))} placeholder="e.g. Core team recommendation" /></label>
-                <p className="adm-hint">If they have no account yet, one is created; they set a password with "Forgot password".</p>
+                <Switch checked={invite} onChange={setInvite} label="Email them a link to set their password (only if they have no account yet)" />
+                <p className="adm-hint">If they have no account yet, one is created. When they first sign in or register with this email, the site asks them to set a password using a code sent to that email.</p>
                 <div className="adm-row end"><button type="button" className="adm-btn ghost" onClick={onClose}>Cancel</button><button className="adm-btn primary" disabled={!f.domainIds.length}>Add and select</button></div>
             </form>
         </Modal>
@@ -260,6 +271,7 @@ function ImportSelections({ domains, onClose, onDone }) {
     const [fixedDomains, setFixedDomains] = useState([])
     const [fixedStatus, setFixedStatus] = useState('selected')
     const [final, setFinal] = useState(false)
+    const [invite, setInvite] = useState(true)
     const [busy, setBusy] = useState(null)
     const [result, setResult] = useState(null)
 
@@ -275,16 +287,17 @@ function ImportSelections({ domains, onClose, onDone }) {
 
     const run = async () => {
         setBusy({ done: 0, total: rows.length })
-        const sum = { people: 0, selections: 0, created: 0, skipped: [], unknownDomains: new Set(), listed: {} }
+        const sum = { people: 0, selections: 0, created: 0, createdEmails: [], skipped: [], unknownDomains: new Set(), listed: {} }
         try {
             for (let i = 0; i < rows.length; i += 250) {
                 const r = await api.post('/admin/recruitment/import', { rows: rows.slice(i, i + 250), note: `Imported from ${sheet.file}` })
-                sum.people += r.people; sum.selections += r.selections; sum.created += r.created; sum.skipped.push(...r.skipped)
+                sum.people += r.people; sum.selections += r.selections; sum.created += r.created; sum.skipped.push(...r.skipped); sum.createdEmails.push(...(r.createdEmails || []))
                 r.unknownDomains.forEach(d => sum.unknownDomains.add(d))
                 for (const [d, list] of Object.entries(r.listed)) (sum.listed[d] ||= []).push(...list)
                 setBusy({ done: Math.min(rows.length, i + 250), total: rows.length })
             }
             if (final && Object.keys(sum.listed).length) sum.changed = (await api.post('/admin/recruitment/import/finalize', { listed: sum.listed })).changed
+            if (invite && sum.createdEmails.length) { await api.post('/admin/recruitment/invite', { emails: sum.createdEmails }); sum.invited = sum.createdEmails.length }
             setResult({ ...sum, unknownDomains: [...sum.unknownDomains] })
             toast(`Imported ${sum.selections} selections — recorded in the audit log`)
             onDone()
@@ -319,6 +332,7 @@ function ImportSelections({ domains, onClose, onDone }) {
                         </label>
                     )}
                     <Switch checked={final} onChange={setFinal} label="This sheet is the final list — everyone else in these domains becomes Not selected" />
+                    <Switch checked={invite} onChange={setInvite} label="Email people who don't have an account yet a link to set their password" />
                     <div className="adm-table-wrap">
                         <table className="adm-table">
                             <thead><tr><th>Row</th><th>Name</th><th>Email</th><th>Reg no</th><th>Domains</th><th>Status</th></tr></thead>
@@ -330,7 +344,7 @@ function ImportSelections({ domains, onClose, onDone }) {
                 {busy && <div><div className="adm-progress"><span style={{ width: `${(busy.done / busy.total) * 100}%` }} /></div><small>Importing {busy.done} / {busy.total}</small></div>}
                 {result && (
                     <div className="adm-panel">
-                        <b>{result.selections} selections for {result.people} people</b> ({result.created} new accounts){result.changed !== undefined && <>, {result.changed} others marked Not selected</>}.
+                        <b>{result.selections} selections for {result.people} people</b> ({result.created} new accounts){result.changed !== undefined && <>, {result.changed} others marked Not selected</>}{result.invited ? <>, {result.invited} set-password emails queued</> : null}.
                         {result.unknownDomains.length > 0 && <p className="adm-err">Unknown domains (rows skipped): {result.unknownDomains.join(', ')}</p>}
                         {result.skipped.length > 0 && <p className="adm-hint">Skipped: {result.skipped.slice(0, 20).map(s => `row ${s.row} (${s.reason})`).join('; ')}{result.skipped.length > 20 ? '…' : ''}</p>}
                     </div>
@@ -365,9 +379,13 @@ function EmailsTab({ domains, apps }) {
     const nWaiting = pending.filter(p => !p.some(a => a.status === 'selected') && !p.every(a => a.status === 'not_selected')).length
     const audience = people.filter(p => p.some(a => (!aud.domainIds.length || aud.domainIds.includes(a.domain_id)) && (!aud.statuses.length || aud.statuses.includes(a.status)) && (!aud.pendingTestOnly || !a.test_submitted_at))).length
     const missingLinks = domains.filter(d => !d.whatsapp_link && apps.some(a => a.domain_id === d.id && a.status === 'selected'))
+    const noPassword = new Set(apps.filter(a => a.invited).map(a => a.user_id)).size
 
     const send = async body => {
-        try { const r = await api.post('/admin/recruitment/email', body); toast(queuedText(r.queued)); navigate('/admin/outbox') } catch (e) { toast(e.message, 'error') }
+        try {
+            const r = body.kind === 'invite' ? await api.post('/admin/recruitment/invite', { all: true }) : await api.post('/admin/recruitment/email', body)
+            toast(queuedText(r.queued)); navigate('/admin/outbox')
+        } catch (e) { toast(e.message, 'error') }
     }
     const toggle = (key, v) => setAud(a => ({ ...a, [key]: a[key].includes(v) ? a[key].filter(x => x !== v) : [...a[key], v] }))
 
@@ -382,6 +400,12 @@ function EmailsTab({ domains, apps }) {
                 <Switch checked={opts.onlyNew} onChange={v => setOpts(o => ({ ...o, onlyNew: v }))} label="Skip people who were already emailed their result" />
                 <p><b>{nSelected}</b> selected · <b>{nNot}</b> not selected will be emailed.</p>
                 <button className="adm-btn primary" disabled={!nSelected && !nNot} onClick={() => send({ kind: 'results', ...opts })}><Icon name="send" size={16} /> Queue result emails</button>
+            </section>
+            <section className="adm-panel">
+                <h3>Set-password invitations</h3>
+                <p className="adm-hint">People added directly or by Excel import have an account but no password. They can set one the first time they sign in or register; this emails them a link to do it now. Wording in <Link to="/admin/s/recruitment_mail">Recruitment Emails</Link>.</p>
+                <p><b>{noPassword}</b> {noPassword === 1 ? 'person has' : 'people have'} not set a password yet.</p>
+                <button className="adm-btn" disabled={!noPassword} onClick={() => send({ kind: 'invite' })}><Icon name="send" size={16} /> Email them the link</button>
             </section>
             <section className="adm-panel">
                 <h3>Reminders & messages</h3>
@@ -546,6 +570,7 @@ export default function RecruitmentAdmin() {
                                             <td>
                                                 <button className="adm-link" onClick={() => (isAdmin ? setEditingPerson(a.user_id) : setViewing(a.id))} title={isAdmin ? 'Edit candidate' : 'View application'}><strong>{a.name}</strong></button>
                                                 <small className="adm-block">{a.email} · {a.mobile || 'no mobile'}</small>
+                                                {!!a.invited && <Badge tone="warn">No password yet</Badge>}
                                                 <span className="adm-row" style={{ marginTop: 4 }}>
                                                     {isAdmin && <button className="adm-btn small ghost" onClick={() => setEditingPerson(a.user_id)}>Edit</button>}
                                                     <button className="adm-btn small ghost" onClick={() => setViewing(a.id)}>Answers</button>

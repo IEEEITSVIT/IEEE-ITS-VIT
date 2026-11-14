@@ -6,7 +6,7 @@ import { api } from '../lib/api'
 import Seo from '../components/Seo'
 
 /* Forgot password: request a 6-digit code by email, then set a new password with it. */
-function ForgotPassword({ initialEmail, initialCode, onDone, onBack }) {
+function ForgotPassword({ initialEmail, initialCode, setup, notice, onDone, onBack }) {
     // Opened from the email's "Reset password" link: email and code arrive pre-filled.
     const linkCode = /^\d{6}$/.test(initialCode || '') ? initialCode : ''
     const [step, setStep] = useState(linkCode && initialEmail ? 'code' : 'email')
@@ -45,10 +45,11 @@ function ForgotPassword({ initialEmail, initialCode, onDone, onBack }) {
 
     return (
         <>
-            <span className="label">Account recovery</span>
-            <h1 className="display h-md" style={{ marginTop: 14 }}>Reset password</h1>
+            <span className="label">{setup ? 'Welcome' : 'Account recovery'}</span>
+            <h1 className="display h-md" style={{ marginTop: 14 }}>{setup ? 'Set your password' : 'Reset password'}</h1>
+            {notice && <p className="notice ok" style={{ marginTop: 14 }}>{notice}</p>}
             <p className="muted" style={{ margin: '12px 0 22px' }}>
-                {step === 'email' ? 'Enter your account email and we will send you a 6-digit code.' : linkCode && code === linkCode ? <>Choose a new password for <b style={{ color: 'var(--text)' }}>{email}</b>.</> : <>Enter the code sent to <b style={{ color: 'var(--text)' }}>{email}</b> and choose a new password.</>}
+                {step === 'email' ? (setup ? 'We will email a 6-digit code to this address to confirm it is yours, then you choose a password.' : 'Enter your account email and we will send you a 6-digit code.') : linkCode && code === linkCode ? <>Choose a new password for <b style={{ color: 'var(--text)' }}>{email}</b>.</> : <>Enter the code sent to <b style={{ color: 'var(--text)' }}>{email}</b> and choose a new password.</>}
             </p>
             {step === 'email' ? (
                 <form className="form" onSubmit={sendCode}>
@@ -64,7 +65,7 @@ function ForgotPassword({ initialEmail, initialCode, onDone, onBack }) {
                     </label>
                     <label className="field"><span>New password</span><input type="password" value={pw.next} onChange={e => setPw(x => ({ ...x, next: e.target.value }))} required minLength={8} autoComplete="new-password" placeholder="8+ characters, letters and numbers" /></label>
                     <label className="field"><span>Confirm new password</span><input type="password" value={pw.confirm} onChange={e => setPw(x => ({ ...x, confirm: e.target.value }))} required autoComplete="new-password" /></label>
-                    <button className="btn solid" disabled={busy || code.length !== 6}>{busy ? 'Saving…' : 'Reset password'} <span className="arr">→</span></button>
+                    <button className="btn solid" disabled={busy || code.length !== 6}>{busy ? 'Saving…' : setup ? 'Set password and sign in' : 'Reset password'} <span className="arr">→</span></button>
                     {msg && <p className={`notice ${msg.ok ? 'ok' : 'err'}`} role="alert">{msg.t}</p>}
                     <button type="button" className="btn sm" disabled={busy || cooldown > 0} onClick={sendCode} style={{ alignSelf: 'flex-start' }}>
                         {cooldown > 0 ? `Resend code in ${cooldown}s` : 'Resend code'}
@@ -81,6 +82,8 @@ export default function Login() {
     const [params] = useSearchParams()
     const navigate = useNavigate()
     const [mode, setMode] = useState(['register', 'forgot'].includes(params.get('mode')) ? params.get('mode') : 'login')
+    // Accounts created by an admin (recruitment / Excel import) have no password yet: they set one with an emailed code.
+    const [setup, setSetup] = useState(params.get('setup') === '1' ? { notice: '' } : null)
     const [f, setF] = useState({ name: '', email: '', password: '', confirm: '', mobile: '', regNo: '' })
     const [show, setShow] = useState(false)
     const [err, setErr] = useState('')
@@ -98,7 +101,10 @@ export default function Login() {
                 : await register({ name: f.name, email: f.email, password: f.password, mobile: f.mobile, regNo: f.regNo })
             if (next?.startsWith('/')) navigate(next)
             else if (u.role !== 'member' && mode === 'login') navigate('/admin')
-        } catch (e2) { setErr(e2.message) } finally { setBusy(false) }
+        } catch (e2) {
+            if (e2.code === 'SET_PASSWORD') { setSetup({ notice: e2.message }); setMode('forgot'); setErr('') }
+            else setErr(e2.message)
+        } finally { setBusy(false) }
     }
 
     if (loading) return <div className="auth-wrap"><div className="skeleton" style={{ width: 460, height: 420 }} /></div>
@@ -121,10 +127,11 @@ export default function Login() {
 
     return (
         <div className="auth-wrap">
-            <Seo title={mode === 'forgot' ? 'Reset password' : 'Sign In'} noindex />
+            <Seo title={mode === 'forgot' ? (setup ? 'Set your password' : 'Reset password') : 'Sign In'} noindex />
             <motion.div className="auth-card" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}>
                 {mode === 'forgot' ? (
-                    <ForgotPassword initialEmail={params.get('email') || f.email} initialCode={params.get('code') || ''} onBack={() => { setMode('login'); setErr('') }}
+                    <ForgotPassword initialEmail={f.email || params.get('email') || ''} initialCode={params.get('code') || ''} setup={!!setup} notice={setup?.notice}
+                        onBack={() => { setMode('login'); setSetup(null); setErr('') }}
                         onDone={async u => { await refresh(); if (next?.startsWith('/')) navigate(next); else if (u.role !== 'member') navigate('/admin') }} />
                 ) : (<>
                 <span className="label">Member portal</span>

@@ -1,8 +1,9 @@
 /* Thin fetch wrapper for the IEEE ITS API (same origin; session travels in an HttpOnly cookie). */
 export class ApiError extends Error {
-    constructor(status, message) {
+    constructor(status, message, code) {
         super(message)
         this.status = status
+        this.code = code // e.g. SET_PASSWORD for accounts an admin created
     }
 }
 
@@ -18,7 +19,7 @@ export async function api(path, { method = 'GET', body, signal } = {}) {
         body: body !== undefined ? JSON.stringify(body) : undefined,
     })
     const data = await res.json().catch(() => ({}))
-    if (!res.ok) throw new ApiError(res.status, data.error || `Request failed (${res.status})`)
+    if (!res.ok) throw new ApiError(res.status, data.error || `Request failed (${res.status})`, data.code)
     return data
 }
 

@@ -153,21 +153,23 @@ export async function notifyQuery(q) {
 }
 
 /** Reset email with the 6-digit code and a one-click link that opens the reset form with it filled in. */
-export async function sendPasswordResetCode(user, code, link) {
+export async function sendPasswordResetCode(user, code, link, { setup = false } = {}) {
+    const heading = setup ? 'Set your password' : 'Reset your password'
+    const lead = setup ? 'Your IEEE ITS VIT account is ready. Use this code to set your password and sign in for the first time:' : 'Use this code to reset your IEEE ITS VIT account password:'
     const html = `
 <div style="font-family:Inter,Segoe UI,Arial,sans-serif;background:#0b0c0e;padding:24px;color:#f2f0eb">
   <div style="max-width:480px;margin:0 auto;background:#131518;border:1px solid #262a30;border-radius:14px;overflow:hidden">
-    <div style="background:#3d9bff;padding:16px 24px;font-weight:800;font-size:17px;color:#0b0c0e">Reset your password</div>
+    <div style="background:#3d9bff;padding:16px 24px;font-weight:800;font-size:17px;color:#0b0c0e">${heading}</div>
     <div style="padding:24px">
-      <p style="margin:0 0 16px;color:#c8c8d0">Hi ${esc(user.name || 'there')},<br/>Use this code to reset your IEEE ITS VIT account password:</p>
+      <p style="margin:0 0 16px;color:#c8c8d0">Hi ${esc(user.name || 'there')},<br/>${lead}</p>
       <div style="font-family:'JetBrains Mono',Menlo,monospace;font-size:34px;font-weight:700;letter-spacing:10px;text-align:center;padding:16px;border:1px solid #262a30;border-radius:10px;color:#ffffff">${esc(code)}</div>
-      ${link ? `<p style="text-align:center;margin:20px 0 4px"><a href="${esc(link)}" style="display:inline-block;background:#3d9bff;color:#0b0c0e;font-weight:700;text-decoration:none;padding:12px 22px;border-radius:999px">Reset password</a></p>
+      ${link ? `<p style="text-align:center;margin:20px 0 4px"><a href="${esc(link)}" style="display:inline-block;background:#3d9bff;color:#0b0c0e;font-weight:700;text-decoration:none;padding:12px 22px;border-radius:999px">${heading}</a></p>
       <p style="margin:0;color:#8e939a;font-size:12px;text-align:center">or open this link: <a href="${esc(link)}" style="color:#3d9bff">${esc(link)}</a></p>` : ''}
-      <p style="margin:16px 0 0;color:#8e939a;font-size:13px">The code and link expire in 10 minutes and work once. If you did not ask to reset your password, ignore this email — your password stays the same.</p>
+      <p style="margin:16px 0 0;color:#8e939a;font-size:13px">The code and link expire in 10 minutes and work once. ${setup ? 'If you were not expecting this, you can ignore this email.' : 'If you did not ask to reset your password, ignore this email — your password stays the same.'}</p>
     </div>
   </div>
 </div>`
-    return sendMail({ kind: 'password-reset', to: [user.email], subject: `${code} is your IEEE ITS password reset code`, html, profile: 'auth' })
+    return sendMail({ kind: setup ? 'password-setup' : 'password-reset', to: [user.email], subject: `${code} is your IEEE ITS ${setup ? 'code to set your password' : 'password reset code'}`, html, profile: 'auth' })
 }
 
 export async function notifySubscriber(email, list) {

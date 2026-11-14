@@ -430,6 +430,8 @@ export const SETTINGS_FORMS = {
             { name: 'selectedBody', label: 'Selected — message', type: 'textarea', help: 'Placeholders: {{name}} {{domains}} {{whatsapp}} (each selected domain with its WhatsApp group link).' },
             { name: 'notSelectedSubject', label: 'Not selected — subject', type: 'text' },
             { name: 'notSelectedBody', label: 'Not selected — message', type: 'textarea', help: 'Keep it kind. Placeholders: {{name}} {{domains}}.' },
+            { name: 'inviteSubject', label: 'Invitation (people added by an admin) — subject', type: 'text' },
+            { name: 'inviteBody', label: 'Invitation — message', type: 'textarea', help: 'Sent to people you add directly or by Excel import. Placeholders: {{name}} {{email}} {{domains}} {{link}} (opens "Set your password").' },
             { name: 'reminderSubject', label: 'Reminder — subject', type: 'text' },
             { name: 'reminderBody', label: 'Reminder — message', type: 'textarea', help: 'Placeholders: {{name}} {{domain}} {{deadline}} {{exam}} (exam links with their deadlines).' },
         ],

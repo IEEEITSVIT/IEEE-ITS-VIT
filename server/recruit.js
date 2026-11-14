@@ -208,7 +208,8 @@ export function installRecruitment({ route, requireRole, audit, loadSettings }) 
     route('GET', '/api/admin/recruitment/applications', async ({ user }) => {
         requireRole(user, 'editor')
         const rows = await db().all(`SELECT a.id, a.user_id, a.domain_id, a.status, a.source, a.auto_score, a.manual_score, a.max_score, a.tab_switches,
-            a.test_started_at, a.test_submitted_at, a.note, a.result_mailed_at, a.created_at, u.name, u.email, u.reg_no, u.mobile
+            a.test_started_at, a.test_submitted_at, a.note, a.result_mailed_at, a.created_at, u.name, u.email, u.reg_no, u.mobile,
+            (u.password_hash = 'invited') AS invited
             FROM rec_applications a JOIN users u ON u.id = a.user_id ORDER BY a.id DESC`)
         return { items: rows.map(r => ({ ...r, score: r.auto_score == null && r.manual_score == null ? null : scoreOf(r) })) }
     })
@@ -262,7 +263,7 @@ export function installRecruitment({ route, requireRole, audit, loadSettings }) 
         }
         const names = (await db().all(`SELECT title FROM rec_domains WHERE id IN (${ids.map(() => '?').join(',')})`, ids)).map(d => d.title)
         await audit(user, 'select-direct', 'recruitment', person.id, `${email} selected without test for: ${names.join(', ')}`)
-        return { ok: true }
+        return { ok: true, email, needsPassword: (await db().first('SELECT password_hash FROM users WHERE id = ?', [person.id])).password_hash === 'invited' }
     })
 
     /* Result emails, reminders and custom messages (queued as mail-outs). */
@@ -369,7 +370,7 @@ export function installRecruitment({ route, requireRole, audit, loadSettings }) 
         await audit(user, 'import', 'recruitment', '', `Excel import: ${values.length} selections for ${picks.length} people (${fresh.length} new accounts), ${skipped.length} rows skipped`)
         const listed = {}
         for (const p of picks) for (const d of p.ids) (listed[d] ||= []).push(p.email)
-        return { people: picks.length, selections: values.length, created: fresh.length, skipped, unknownDomains: [...unknown], listed }
+        return { people: picks.length, selections: values.length, created: fresh.length, createdEmails: fresh.map(p => p.email), skipped, unknownDomains: [...unknown], listed }
     })
 
     /* After an import marked as the final list: everyone not on the sheet for a domain becomes "not selected" there. */
@@ -388,10 +389,33 @@ export function installRecruitment({ route, requireRole, audit, loadSettings }) 
         return { changed }
     })
 
+    /*
+     * Invite people an admin added (directly or by Excel) to set their password. Sent through the
+     * Outbox. Only accounts that still have no password are emailed. emails: [...] or all: true.
+     */
+    route('POST', '/api/admin/recruitment/invite', async ({ req, user, body }) => {
+        requireRole(user, 'admin')
+        const tpl = (await loadSettings(['recruitment_mail'])).recruitment_mail
+        const { site } = await loadSettings(['site'])
+        const base = (site.url || `https://${req.headers['x-forwarded-host'] || req.headers.host}`).replace(/\/$/, '')
+        const wanted = body.all ? null : new Set((Array.isArray(body.emails) ? body.emails : []).map(e => String(e).toLowerCase()))
+        const rows = await db().all(`SELECT u.id, u.name, u.email, GROUP_CONCAT(d.title, ', ') domains FROM users u
+            JOIN rec_applications a ON a.user_id = u.id JOIN rec_domains d ON d.id = a.domain_id
+            WHERE u.password_hash = 'invited' AND u.active = 1 GROUP BY u.id`)
+        const recipients = rows.filter(r => !wanted || wanted.has(r.email.toLowerCase())).map(r => ({
+            email: r.email, vars: { name: String(r.name).split(' ')[0], email: r.email, domains: r.domains,
+                link: `${base}/login?mode=forgot&setup=1&email=${encodeURIComponent(r.email)}` },
+        }))
+        if (!recipients.length) fail(400, 'Everyone selected has already set a password.')
+        const queued = await createCampaign({ kind: 'recruitment-invite', label: `Set-password invitations (${recipients.length})`, subject: tpl.inviteSubject, body: tpl.inviteBody, recipients, user })
+        await audit(user, 'email', 'recruitment', '', `Set-password invitations queued for ${recipients.length} people`)
+        return { queued: [queued] }
+    })
+
     /* One candidate with all their domain applications (for the admin's Edit candidate window). */
     route('GET', '/api/admin/recruitment/candidates/:userId', async ({ user, params }) => {
         requireRole(user, 'editor')
-        const person = await db().first('SELECT id, name, email, reg_no, mobile, member_type FROM users WHERE id = ?', [Number(params.userId)])
+        const person = await db().first("SELECT id, name, email, reg_no, mobile, member_type, (password_hash = 'invited') AS invited FROM users WHERE id = ?", [Number(params.userId)])
         if (!person) fail(404, 'Candidate not found.')
         const apps = await db().all(`SELECT id, domain_id, status, source, auto_score, manual_score, max_score, note, test_submitted_at, created_at
             FROM rec_applications WHERE user_id = ? ORDER BY id`, [person.id])

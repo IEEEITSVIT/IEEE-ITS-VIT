@@ -310,6 +310,10 @@ route('POST', '/api/subscribe', async ({ body }) => {
 })
 
 /* ── auth ── */
+/* Accounts created by an admin (recruitment "add directly" or Excel import) have no password yet. */
+const INVITED = 'invited'
+const SET_PASSWORD_MSG = 'Welcome! IEEE ITS VIT has already created an account for this email. Set your password to sign in — we will email you a 6-digit code.'
+
 route('POST', '/api/auth/register', async ({ req, res, body }) => {
     const name = str(body.name, 120)
     const email = str(body.email, 200).toLowerCase()
@@ -319,7 +323,10 @@ route('POST', '/api/auth/register', async ({ req, res, body }) => {
     if (problem) fail(400, problem)
     await assertNotThrottled([`ip:${clientIp(req)}`])
     const db = getDb()
-    if (await db.first('SELECT id FROM users WHERE email = ?', [email])) fail(409, 'An account with this email already exists. Please sign in.')
+    const existing = await db.first('SELECT id, password_hash FROM users WHERE email = ?', [email])
+    // An admin-created account is claimed by proving the email with a code, never by simply registering over it.
+    if (existing?.password_hash === INVITED) fail(409, SET_PASSWORD_MSG, 'SET_PASSWORD')
+    if (existing) fail(409, 'An account with this email already exists. Please sign in.')
     const r = await db.run(
         'INSERT INTO users (name, email, password_hash, mobile, reg_no, member_type, last_login_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
         [name, email, await hashPassword(body.password), str(body.mobile, 15).replace(/\D/g, '').slice(0, 10), str(body.regNo, 12).toUpperCase(), memberTypeFor(email), nowIso()]
@@ -336,6 +343,7 @@ route('POST', '/api/auth/login', async ({ req, res, body }) => {
     await assertNotThrottled(keys)
     const db = getDb()
     const user = await db.first('SELECT * FROM users WHERE email = ?', [email])
+    if (user?.password_hash === INVITED && user.active) fail(409, SET_PASSWORD_MSG, 'SET_PASSWORD')
     const ok = user && await verifyPassword(String(body.password || ''), user.password_hash)
     if (!ok) { await recordFailure(keys); fail(401, 'Incorrect email or password.') }
     if (!user.active) fail(403, 'This account has been disabled. Please contact the chapter.')
@@ -384,8 +392,9 @@ route('POST', '/api/auth/forgot', async ({ req, body }) => {
         await db.run('INSERT INTO password_resets (user_id, code_hash, expires_at) VALUES (?, ?, ?)', [user.id, hashOtp(code, user.id), Date.now() + OTP_TTL_MS])
         const site = (await loadSettings(['site'])).site
         const base = (site.url || `https://${req.headers['x-forwarded-host'] || req.headers.host}`).replace(/\/$/, '')
-        const link = `${base}/login?mode=forgot&email=${encodeURIComponent(user.email)}&code=${code}`
-        const sent = await sendPasswordResetCode(user, code, link)
+        const setup = user.password_hash === INVITED
+        const link = `${base}/login?mode=forgot${setup ? '&setup=1' : ''}&email=${encodeURIComponent(user.email)}&code=${code}`
+        const sent = await sendPasswordResetCode(user, code, link, { setup })
         if (!sent.ok) console.error('[reset] email failed:', sent.error)
     }
     return { ok: true, message: 'If an account exists for that email, a 6-digit code is on its way.' }
@@ -961,6 +970,6 @@ export async function handle(req, res, pathOverride) {
     } catch (e) {
         const status = e instanceof HttpError ? e.status : e.status || 500
         if (status >= 500) console.error('[api]', req.method, pathname, e)
-        send(res, status, { error: status >= 500 && !(e instanceof HttpError) && !e.status ? 'Something went wrong on the server.' : e.message })
+        send(res, status, { error: status >= 500 && !(e instanceof HttpError) && !e.status ? 'Something went wrong on the server.' : e.message, ...(e.code && typeof e.code === 'string' && /^[A-Z_]+$/.test(e.code) ? { code: e.code } : {}) })
     }
 }

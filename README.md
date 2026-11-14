@@ -60,6 +60,11 @@ SEO — is edited at **`/admin`**, and the site also runs the chapter's **recrui
 - Admin: filter by domain/status/score, pick the top N, **mark for interview**, **select** (one person can be
   selected for several domains), **add and select directly without a test**, or **import a manually made
   selection list from Excel** (optionally as the final list for those domains). Everything is in the audit log.
+- **First sign-in for people added by an admin** (direct add or Excel import): they have no password yet, so
+  signing in or registering with that email opens **Set your password** — a 6-digit code is emailed to prove the
+  address is theirs. An optional invitation email (with a set-password link) goes out on add/import, and
+  **Recruitment → Emails → Set-password invitations** resends it to everyone still without a password. Such people
+  show a *No password yet* badge in Applicants.
 - **Result emails:** selected candidates get their domains and each domain's **WhatsApp group link**; people
   marked *Not selected* get a kind thank-you note (undecided applicants are skipped). **Reminders** to one domain,
   some statuses, or everyone.
@@ -177,6 +182,7 @@ Database changes ship as idempotent statements in `server/schema.sql`; after pul
 | Shortlist / select candidates | **Recruitment → Applicants** (filters, *Pick top N*, bulk buttons) |
 | Upload an offline selection list | **Recruitment → Import Excel** (template downloadable there) |
 | Fix a candidate's name, email, reg no or phone, or change their domains | **Recruitment → Applicants** → click the name (**Edit**) |
+| Invite people added by Excel / direct add to set their password | **Recruitment → Emails → Set-password invitations** |
 | Send results / reminders | **Recruitment → Emails** (wording in **Recruitment Emails**) |
 | Run a hackathon | **Event Portals → New event portal** → Setup → status *Open* → share `/e/<link>` |
 | Judge | Add evaluator emails in the portal's Setup; they open `/e/<link>/judge` |
