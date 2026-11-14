@@ -4,7 +4,7 @@
  * templated emails and certificates. Any number of portals can be created, run and purged.
  */
 import crypto from 'crypto'
-import { getDb, parseJson } from './db.js'
+import { getDb, parseJson, lit, execBatches } from './db.js'
 import { fail, str, isEmail, safeUrl } from './http.js'
 import { createCampaign, sendDirect } from './campaigns.js'
 import { slugify } from '../shared/cms.js'
@@ -16,6 +16,7 @@ const clamp = (v, lo, hi, d) => (Number.isFinite(Number(v)) ? Math.min(hi, Math.
 const chunks = (arr, n = 90) => Array.from({ length: Math.ceil(arr.length / n) }, (_, i) => arr.slice(i * n, i * n + n))
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
 const newCode = () => Array.from(crypto.randomBytes(6), b => CODE_CHARS[b % CODE_CHARS.length]).join('')
+const isVit = email => /@vitstudent\.ac\.in$/i.test(email || '')
 const emails = v => [...new Set((Array.isArray(v) ? v : String(v || '').split(/[\s,;]+/)).map(e => String(e).trim().toLowerCase()).filter(isEmail))]
 
 export const CERT_KEYS = ['name', 'team', 'event', 'rank', 'date', 'regNo', 'custom']
@@ -34,6 +35,7 @@ const defaultConfig = () => ({
         notQualified: { subject: '{{event}} — thank you for taking part', body: 'Hi {{name}},\n\nThank you for the effort team {{team}} put into {{event}}. The competition was close and your team did not move on to {{round}} this time.\n\nYour scores and feedback are on the event page:\n{{link}}\n\nWe hope to see you at the next one.\nIEEE ITS VIT' },
         winners: { subject: 'Congratulations — {{event}} winners', body: 'Hi {{name}},\n\nCongratulations! Team {{team}} placed #{{rank}} at {{event}}.\n\nYour certificate is available on the event page:\n{{link}}\n\nIEEE ITS VIT' },
         participation: { subject: 'Your {{event}} certificate', body: 'Hi {{name}},\n\nThank you for participating in {{event}} with team {{team}}. Your certificate is attached / available on the event page:\n{{link}}\n\nIEEE ITS VIT' },
+        added: { subject: 'You are registered for {{event}}', body: 'Hi {{name}},\n\nYou have been registered for {{event}}{{teamLine}}.\n\n{{account}}\n\nEvent page — details, submissions and results:\n{{link}}\n\nIEEE ITS VIT' },
         all: { subject: '{{event}} — update', body: 'Hi {{name}},\n\n\n\nEvent page: {{link}}\nIEEE ITS VIT' },
     },
     certificates: {
@@ -375,7 +377,7 @@ export function installPortals({ route, requireRole, audit, loadSettings, releas
         if (!p) fail(404, 'Event not found.')
         const [teams, members, scores] = await Promise.all([
             db().all('SELECT id, name, code, lead_user_id, submission, submitted_at, round, rank, created_at FROM ev_teams WHERE portal_id = ? ORDER BY id', [p.id]),
-            db().all('SELECT m.id, m.team_id, m.user_id, m.role, m.cert_sent_at, m.joined_at, u.name, u.email, u.reg_no, u.mobile FROM ev_members m JOIN users u ON u.id = m.user_id WHERE m.portal_id = ? ORDER BY m.team_id, m.id', [p.id]),
+            db().all("SELECT m.id, m.team_id, m.user_id, m.role, m.cert_sent_at, m.joined_at, u.name, u.email, u.reg_no, u.mobile, (u.password_hash = 'invited') AS invited FROM ev_members m JOIN users u ON u.id = m.user_id WHERE m.portal_id = ? ORDER BY m.team_id, m.id", [p.id]),
             db().all('SELECT s.team_id, s.round, s.scores, s.total, s.comment, s.evaluator_id, u.email evaluator FROM ev_scores s LEFT JOIN users u ON u.id = s.evaluator_id WHERE s.portal_id = ?', [p.id]),
         ])
         return { teams: teams.map(t => ({ ...t, submission: parseJson(t.submission, {}) })), members, scores: scores.map(s => ({ ...s, scores: parseJson(s.scores, {}) })) }
@@ -409,6 +411,166 @@ export function installPortals({ route, requireRole, audit, loadSettings, releas
     })
 
     /* The complete list of teams that qualify from `round` to the next one. */
+    /*
+     * Admin adds participants — one typed in, or a sheet sent in chunks of up to 500 rows. People without an
+     * account get one with no password (they set it on first sign-in with an emailed code). In team events,
+     * rows with the same team name form one team (or join that team if it already exists). Everything is
+     * written with a handful of bulk statements so 1,500 rows stay well inside D1's free-tier limits.
+     */
+    route('POST', '/api/admin/portals/:id/participants', async ({ user, params, body }) => {
+        requireRole(user, 'editor')
+        const p = await byId(params.id)
+        if (!p) fail(404, 'Event not found.')
+        const solo = p.config.team.mode === 'solo'
+        const max = p.config.team.max
+        const rows = (Array.isArray(body.rows) ? body.rows : []).slice(0, 500)
+        const skipped = []
+        const people = []
+        const seen = new Set()
+        rows.forEach((r, i) => {
+            const row = r.line ?? i + 1
+            const email = str(r.email, 200).toLowerCase()
+            if (!isEmail(email)) return skipped.push({ row, reason: `invalid email "${str(r.email, 60)}"` })
+            if (seen.has(email)) return skipped.push({ row, reason: `${email} is listed twice` })
+            if (p.config.vitOnly && !isVit(email)) return skipped.push({ row, reason: `${email} is not a @vitstudent.ac.in email (this event is VIT only)` })
+            const team = solo ? '' : teamName(r.team)
+            if (!solo && team.length < 2) return skipped.push({ row, reason: `no team name for ${email}` })
+            seen.add(email)
+            people.push({
+                row, email, team, name: str(r.name, 120).replace(/\s+/g, ' ').trim(),
+                regNo: str(r.regNo, 12).toUpperCase().replace(/\s/g, ''), mobile: str(r.mobile, 20).replace(/\D/g, '').slice(-10),
+                lead: r.lead === true || /^(lead|leader|team lead|captain|yes|y|true|1)$/i.test(String(r.lead ?? r.role ?? '').trim()),
+            })
+        })
+
+        // Existing accounts (new ones are created below, only for people who actually get a place).
+        const users = new Map()
+        const fetchUsers = async list => {
+            for (const part of chunks(list)) {
+                for (const u of await db().all(`SELECT id, name, email, mobile, reg_no, password_hash FROM users WHERE email IN (${part.map(() => '?').join(',')})`, part)) users.set(u.email.toLowerCase(), u)
+            }
+        }
+        await fetchUsers(people.map(x => x.email))
+
+        // Who is already in this event, and which teams exist.
+        const already = new Map((await db().all('SELECT m.user_id, t.name FROM ev_members m JOIN ev_teams t ON t.id = m.team_id WHERE m.portal_id = ?', [p.id])).map(m => [m.user_id, m.name]))
+        const teams = await db().all('SELECT t.id, t.name, t.code, (SELECT COUNT(*) FROM ev_members m WHERE m.team_id = t.id) n FROM ev_teams t WHERE t.portal_id = ?', [p.id])
+        const byName = new Map(teams.map(t => [t.name.toLowerCase(), t]))
+        const codes = new Set(teams.map(t => t.code))
+        const code = () => { let c; do c = newCode(); while (codes.has(c)); codes.add(c); return c }
+
+        const newTeams = new Map() // lower(name) -> { name, code, lead, members: [] }
+        const joins = []          // { teamId, person }
+        for (const x of people) {
+            const u = users.get(x.email)
+            if (u && already.has(u.id)) { skipped.push({ row: x.row, reason: `${x.email} is already registered (${already.get(u.id)})` }); continue }
+            if (solo) {
+                const base = teamName(u?.name || x.name) || x.email.split('@')[0]
+                const regNo = u?.reg_no || x.regNo
+                let name = base
+                for (let i = 0; byName.has(name.toLowerCase()) || newTeams.has(name.toLowerCase()); i++) name = i === 0 && regNo ? `${base} (${regNo})` : `${base} (${i + 1})`
+                newTeams.set(name.toLowerCase(), { name, code: code(), members: [x] })
+                continue
+            }
+            const k = x.team.toLowerCase()
+            const existing = byName.get(k)
+            if (existing) {
+                if (existing.n >= max) { skipped.push({ row: x.row, reason: `team ${existing.name} is full (${max} members)` }); continue }
+                existing.n++
+                joins.push({ teamId: existing.id, person: x })
+                continue
+            }
+            const t = newTeams.get(k) || newTeams.set(k, { name: x.team, code: code(), members: [] }).get(k)
+            if (t.members.length >= max) { skipped.push({ row: x.row, reason: `team ${t.name} is full (${max} members)` }); continue }
+            t.members.push(x)
+        }
+
+        // Accounts for everyone who got a place: new people get one without a password (they set it on first
+        // sign-in); existing accounts only have a missing mobile / reg no filled in.
+        const placed = [...[...newTeams.values()].flatMap(t => t.members), ...joins.map(j => j.person)]
+        const text = v => (v ? lit(v) : "''")
+        const fresh = placed.filter(x => !users.has(x.email))
+        if (fresh.length) {
+            await execBatches(chunks(fresh, 200).map(part => `INSERT OR IGNORE INTO users (name, email, password_hash, mobile, reg_no, member_type) VALUES ${part.map(x =>
+                `(${lit(x.name || x.email.split('@')[0])}, ${lit(x.email)}, 'invited', ${text(x.mobile)}, ${text(x.regNo)}, ${lit(isVit(x.email) ? 'VIT Student' : 'External Member')})`).join(', ')}`))
+            await fetchUsers(fresh.map(x => x.email))
+        }
+        const fills = placed.filter(x => !fresh.includes(x) && ((x.mobile && !users.get(x.email).mobile) || (x.regNo && !users.get(x.email).reg_no)))
+            .map(x => `UPDATE users SET mobile = CASE WHEN COALESCE(mobile, '') = '' THEN ${text(x.mobile)} ELSE mobile END, reg_no = CASE WHEN COALESCE(reg_no, '') = '' THEN ${text(x.regNo)} ELSE reg_no END WHERE id = ${users.get(x.email).id}`)
+        if (fills.length) await execBatches(fills)
+        for (const x of placed) x.user = users.get(x.email)
+        const lost = placed.filter(x => !x.user)
+        for (const x of lost) skipped.push({ row: x.row, reason: `could not create an account for ${x.email}` })
+
+        // New teams first (the lead is the row marked as lead, otherwise the first row), then everyone's membership.
+        for (const t of newTeams.values()) t.members = t.members.filter(m => m.user)
+        const created = [...newTeams.values()].filter(t => t.members.length)
+        for (const t of created) t.lead = t.members.find(m => m.lead) || t.members[0]
+        if (created.length) {
+            await execBatches(chunks(created, 200).map(part => `INSERT OR IGNORE INTO ev_teams (portal_id, name, code, lead_user_id) VALUES ${part.map(t =>
+                `(${p.id}, ${lit(t.name)}, ${lit(t.code)}, ${t.lead.user.id})`).join(', ')}`))
+            const ids = new Map((await db().all('SELECT id, name, code FROM ev_teams WHERE portal_id = ?', [p.id])).map(t => [t.name.toLowerCase(), t]))
+            for (const t of created) {
+                const row = ids.get(t.name.toLowerCase())
+                if (row?.code === t.code) t.id = row.id
+                else for (const m of t.members) skipped.push({ row: m.row, reason: `team name "${t.name}" was taken a moment ago — add them again` })
+            }
+        }
+        const members = [
+            ...created.filter(t => t.id).flatMap(t => t.members.map(m => ({ teamId: t.id, person: m, role: m === t.lead ? 'lead' : 'member' }))),
+            ...joins.filter(j => j.person.user).map(j => ({ ...j, role: 'member' })),
+        ]
+        if (members.length) {
+            await execBatches(chunks(members, 300).map(part => `INSERT OR IGNORE INTO ev_members (portal_id, team_id, user_id, role) VALUES ${part.map(m =>
+                `(${p.id}, ${m.teamId}, ${m.person.user.id}, '${m.role}')`).join(', ')}`))
+        }
+
+        // An invite-only event lets these people in from now on.
+        const addedEmails = members.map(m => m.person.email)
+        if (p.config.access === 'allowlist') {
+            const missing = addedEmails.filter(e => !p.config.allowlist.includes(e))
+            if (missing.length) await db().run("UPDATE ev_portals SET config = ?, updated_at = datetime('now') WHERE id = ?", [JSON.stringify(cleanConfig({ ...p.config, allowlist: [...p.config.allowlist, ...missing] })), p.id])
+        }
+        const accounts = fresh.filter(x => users.has(x.email)).length
+        await audit(user, 'import', 'event-portal', p.id, `${p.title}: ${members.length} participants added by admin (${created.filter(t => t.id).length} new ${solo ? 'entries' : 'teams'}, ${accounts} new accounts), ${skipped.length} rows skipped`)
+        return {
+            added: members.length, teams: created.filter(t => t.id).length, joined: joins.filter(j => j.person.user).length, accounts,
+            addedEmails, noPassword: members.filter(m => m.person.user.password_hash === 'invited').map(m => m.person.email), skipped,
+        }
+    })
+
+    /*
+     * "You are registered" emails for people an admin added: their team, team code and the event link, and —
+     * for anyone who has not set a password yet — a link to set one. emails: [...] or noPassword: true.
+     */
+    route('POST', '/api/admin/portals/:id/notify', async ({ req, user, params, body }) => {
+        requireRole(user, 'editor')
+        const p = await byId(params.id)
+        if (!p) fail(404, 'Event not found.')
+        const base = (await siteUrl()) || `https://${req.headers['x-forwarded-host'] || req.headers.host}`
+        const wanted = Array.isArray(body.emails) ? new Set(body.emails.map(e => String(e).toLowerCase())) : null
+        const rows = await db().all(`SELECT u.name, u.email, u.password_hash, t.name team, t.code FROM ev_members m JOIN users u ON u.id = m.user_id
+            JOIN ev_teams t ON t.id = m.team_id WHERE m.portal_id = ?${body.noPassword ? " AND u.password_hash = 'invited'" : ''}`, [p.id])
+        const solo = p.config.team.mode === 'solo'
+        const recipients = rows.filter(r => !wanted || wanted.has(r.email.toLowerCase())).map(r => {
+            const setup = r.password_hash === 'invited'
+            return {
+                email: r.email, vars: {
+                    name: String(r.name).split(' ')[0], email: r.email, event: p.title, team: r.team, code: r.code, link: `${base}/e/${p.slug}`,
+                    teamLine: solo ? '' : ` in team ${r.team} (team code ${r.code})`,
+                    account: setup
+                        ? `First time signing in? Set your password here — we will email a 6-digit code to ${r.email} to confirm it is you:\n${base}/login?mode=forgot&setup=1&email=${encodeURIComponent(r.email)}`
+                        : `Sign in with your IEEE ITS VIT account (${r.email}).`,
+                },
+            }
+        })
+        if (!recipients.length) fail(400, body.noPassword ? 'Everyone in this event has already set a password.' : 'Nobody to email.')
+        const draft = p.config.emails.added
+        const queued = await createCampaign({ kind: 'event-added', label: `${p.title}: registration details (${recipients.length})`, subject: draft.subject, body: draft.body, recipients, user })
+        await audit(user, 'email', 'event-portal', p.id, `Registration details queued for ${recipients.length} people`)
+        return { queued: [queued] }
+    })
+
     route('POST', '/api/admin/portals/:id/qualify', async ({ user, params, body }) => {
         requireRole(user, 'editor')
         const p = await byId(params.id)

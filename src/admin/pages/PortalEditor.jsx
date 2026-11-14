@@ -3,8 +3,9 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { api } from '../../lib/api'
 import { useAuth } from '../../hooks/useAuth'
 import { downloadXlsx, fmtIst, saveBlob } from '../../lib/xlsx'
+import { readSheet, mapHeaders } from '../../lib/sheet'
 import { Field } from '../fields'
-import { PageTitle, Badge, Empty, Spinner, Switch, useToast, useConfirm, DateTimeInput, queuedText } from '../ui'
+import { Modal, PageTitle, Badge, Empty, Spinner, Switch, useToast, useConfirm, DateTimeInput, queuedText } from '../ui'
 import Icon from '../icons'
 import { CertDesigner, ListEditor } from '../CertDesigner'
 
@@ -101,11 +102,196 @@ function SetupTab({ portal, setPortal }) {
     )
 }
 
+/* ---------- adding participants (typed in or from Excel) ---------- */
+const isLead = v => /^(lead|leader|team ?lead|captain|yes|y|true|1)$/i.test(String(v || '').trim())
+
+/** Sends rows in chunks, then (optionally) queues the "you are registered" email for everyone added. */
+async function addParticipants(portal, rows, { notify, onProgress } = {}) {
+    const sum = { added: 0, teams: 0, joined: 0, accounts: 0, addedEmails: [], noPassword: [], skipped: [] }
+    for (let i = 0; i < rows.length; i += 400) {
+        const r = await api.post(`/admin/portals/${portal.id}/participants`, { rows: rows.slice(i, i + 400) })
+        for (const k of ['added', 'teams', 'joined', 'accounts']) sum[k] += r[k]
+        sum.addedEmails.push(...r.addedEmails); sum.noPassword.push(...r.noPassword); sum.skipped.push(...r.skipped)
+        onProgress?.(Math.min(rows.length, i + 400))
+    }
+    if (notify && sum.addedEmails.length) { await api.post(`/admin/portals/${portal.id}/notify`, { emails: sum.addedEmails }); sum.notified = sum.addedEmails.length }
+    return sum
+}
+const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`
+const resultText = (r, solo) => `${r.added} added${solo ? '' : ` (${plural(r.teams, 'new team')}${r.joined ? `, ${r.joined} joined existing teams` : ''})`}${r.accounts ? `, ${plural(r.accounts, 'new account')}` : ''}${r.notified ? `, ${r.notified} emails queued` : ''}`
+
+function AddParticipant({ portal, data, onClose, onDone }) {
+    const toast = useToast()
+    const solo = portal.config.team.mode === 'solo'
+    const [f, setF] = useState({ name: '', email: '', regNo: '', mobile: '', team: '', lead: false })
+    const [notify, setNotify] = useState(true)
+    const [busy, setBusy] = useState(false)
+    const set = patch => setF(x => ({ ...x, ...patch }))
+    const existing = data.teams.find(t => t.name.toLowerCase() === f.team.trim().replace(/\s+/g, ' ').toLowerCase())
+    const size = existing ? data.members.filter(m => m.team_id === existing.id).length : 0
+    const save = async (e, again) => {
+        e?.preventDefault()
+        setBusy(true)
+        try {
+            const r = await addParticipants(portal, [{ ...f, line: 1 }], { notify })
+            if (!r.added) toast(r.skipped[0]?.reason || 'Not added', 'error')
+            else {
+                toast(`${f.name || f.email} added${existing ? ` to team ${existing.name}` : ''}${r.notified ? ' — registration email queued' : ''}`)
+                onDone()
+                if (again) setF(x => ({ name: '', email: '', regNo: '', mobile: '', team: x.team, lead: false })); else onClose()
+            }
+        } catch (err) { toast(err.message, 'error') }
+        setBusy(false)
+    }
+    return (
+        <Modal open onClose={onClose} title="Add a participant">
+            <form className="adm-form" onSubmit={save}>
+                <div className="adm-grid-2">
+                    <label className="adm-field"><span>Name</span><input className="adm-input" value={f.name} onChange={e => set({ name: e.target.value })} required /></label>
+                    <label className="adm-field"><span>Email</span><input className="adm-input" type="email" value={f.email} onChange={e => set({ email: e.target.value })} required /></label>
+                    <label className="adm-field"><span>Registration no.</span><input className="adm-input" value={f.regNo} onChange={e => set({ regNo: e.target.value.toUpperCase() })} /></label>
+                    <label className="adm-field"><span>Mobile</span><input className="adm-input" inputMode="numeric" value={f.mobile} onChange={e => set({ mobile: e.target.value.replace(/\D/g, '').slice(0, 10) })} /></label>
+                </div>
+                {!solo && <>
+                    <label className="adm-field"><span>Team name — pick an existing team or type a new one</span>
+                        <input className="adm-input" list="adm-team-names" value={f.team} onChange={e => set({ team: e.target.value })} required minLength={2} />
+                        <datalist id="adm-team-names">{data.teams.map(t => <option key={t.id} value={t.name} />)}</datalist>
+                    </label>
+                    {existing
+                        ? <p className="adm-hint">Joins team <b>{existing.name}</b> ({size} / {portal.config.team.max} members){size >= portal.config.team.max ? ' — this team is full' : ''}.</p>
+                        : f.team.trim().length >= 2 && <Switch checked={f.lead} onChange={v => set({ lead: v })} label="Team lead (otherwise the first person added to a new team leads it)" />}
+                </>}
+                <Switch checked={notify} onChange={setNotify} label="Email them their registration details (with a set-password link if they are new)" />
+                <p className="adm-hint">If this email has no account yet, one is created. The first time they sign in or register with it, the site asks them to set a password using a code sent to that email.</p>
+                <div className="adm-row end">
+                    <button type="button" className="adm-btn ghost" onClick={onClose}>Cancel</button>
+                    <button type="button" className="adm-btn" disabled={busy} onClick={e => e.currentTarget.form.reportValidity() && save(null, true)}>Add and add another</button>
+                    <button className="adm-btn primary" disabled={busy}>Add</button>
+                </div>
+            </form>
+        </Modal>
+    )
+}
+
+const PFIELDS = [['name', 'Name'], ['email', 'Email *'], ['regNo', 'Registration no.'], ['mobile', 'Mobile'], ['team', 'Team name'], ['role', 'Lead? (lead / yes)']]
+
+function ImportParticipants({ portal, onClose, onDone }) {
+    const toast = useToast()
+    const solo = portal.config.team.mode === 'solo'
+    const [sheet, setSheet] = useState(null)
+    const [map, setMap] = useState({})
+    const [notify, setNotify] = useState(true)
+    const [busy, setBusy] = useState(null)
+    const [result, setResult] = useState(null)
+    const fields = PFIELDS.filter(([k]) => !solo || !['team', 'role'].includes(k))
+    const load = async file => {
+        if (!file) return
+        try { const sh = await readSheet(file); setSheet({ ...sh, file: file.name }); setMap(mapHeaders(sh.headers)); setResult(null) } catch (e) { toast(e.message, 'error') }
+    }
+    const rows = useMemo(() => (sheet?.rows || []).map((r, i) => ({
+        line: i + 2, name: r[map.name] || '', email: r[map.email] || '', regNo: r[map.regNo] || '', mobile: r[map.mobile] || '',
+        team: solo ? '' : r[map.team] || '', lead: !solo && map.role ? isLead(r[map.role]) : false,
+    })).filter(r => r.email || r.name), [sheet, map, solo])
+    const teamCount = new Set(rows.map(r => r.team.trim().toLowerCase()).filter(Boolean)).size
+    const run = async () => {
+        setBusy({ done: 0, total: rows.length })
+        try {
+            const r = await addParticipants(portal, rows, { notify, onProgress: done => setBusy({ done, total: rows.length }) })
+            setResult(r)
+            toast(`${r.added} participants added — recorded in the audit log`)
+            onDone()
+        } catch (e) { toast(e.message, 'error') }
+        setBusy(null)
+    }
+    const template = () => downloadXlsx(`${portal.slug}-participants-template.xlsx`, [{
+        name: 'Participants', rows: solo
+            ? [['Name', 'Email', 'Reg no', 'Mobile'], ['Aditi Sharma', 'aditi.sharma2024@vitstudent.ac.in', '24BCE0001', '9876543210']]
+            : [['Name', 'Email', 'Reg no', 'Mobile', 'Team', 'Role'], ['Aditi Sharma', 'aditi.sharma2024@vitstudent.ac.in', '24BCE0001', '9876543210', 'Byte Busters', 'Lead'], ['Rahul Verma', 'rahul.verma2024@vitstudent.ac.in', '24BCE0002', '9876543211', 'Byte Busters', 'Member']],
+    }])
+    return (
+        <Modal open onClose={onClose} title="Import participants from Excel" wide>
+            <div className="adm-form">
+                <p className="adm-hint">
+                    One row per person. {solo ? 'Each row becomes its own entry.' : 'Rows with the same team name become one team (or join that team if it is already registered); the row marked Lead leads it, otherwise the first row does.'}
+                    {' '}People already registered are skipped. People without an account get one and set their password the first time they sign in. <button type="button" className="adm-link" onClick={template}>Download a template</button>
+                </p>
+                <input type="file" accept=".xlsx,.csv" onChange={e => load(e.target.files[0])} />
+                {sheet && <>
+                    <div className="adm-grid-2">
+                        {fields.map(([k, l]) => (
+                            <label key={k} className="adm-field"><span>{l}</span>
+                                <select className="adm-input" value={map[k] || ''} onChange={e => setMap(m => ({ ...m, [k]: e.target.value || undefined }))}>
+                                    <option value="">— not in sheet —</option>{sheet.headers.map(h => <option key={h} value={h}>{h}</option>)}
+                                </select>
+                            </label>
+                        ))}
+                    </div>
+                    {!solo && !map.team && <p className="adm-err">Choose the column that holds the team name.</p>}
+                    <Switch checked={notify} onChange={setNotify} label="Email everyone added their registration details (with a set-password link for new accounts)" />
+                    <div className="adm-table-wrap">
+                        <table className="adm-table">
+                            <thead><tr><th>Row</th><th>Name</th><th>Email</th><th>Reg no</th><th>Mobile</th>{!solo && <th>Team</th>}</tr></thead>
+                            <tbody>{rows.slice(0, 8).map(r => <tr key={r.line}><td>{r.line}</td><td>{r.name}</td><td>{r.email}</td><td>{r.regNo}</td><td>{r.mobile}</td>{!solo && <td>{r.team}{r.lead && <Badge tone="accent">lead</Badge>}</td>}</tr>)}</tbody>
+                        </table>
+                    </div>
+                    <p className="adm-hint">{rows.length} rows in {sheet.file}{!solo && map.team ? ` · ${teamCount} teams` : ''}{rows.length > 8 ? ' — showing the first 8' : ''}.</p>
+                </>}
+                {busy && <div><div className="adm-progress"><span style={{ width: `${(busy.done / busy.total) * 100}%` }} /></div><small>Adding {busy.done} / {busy.total}</small></div>}
+                {result && (
+                    <div className="adm-panel">
+                        <b>{resultText(result, solo)}.</b>
+                        {result.skipped.length > 0 && <p className="adm-hint">Skipped {result.skipped.length}: {result.skipped.slice(0, 20).map(s => `row ${s.row} (${s.reason})`).join('; ')}{result.skipped.length > 20 ? '…' : ''}</p>}
+                    </div>
+                )}
+                <div className="adm-row end">
+                    <button type="button" className="adm-btn ghost" onClick={onClose}>{result ? 'Close' : 'Cancel'}</button>
+                    {!result && <button type="button" className="adm-btn primary" disabled={!rows.length || !map.email || (!solo && !map.team) || !!busy} onClick={run}>Add {rows.length} participants</button>}
+                </div>
+            </div>
+        </Modal>
+    )
+}
+
+/** Wording of the "you are registered" email, and a resend for people who have not set a password yet. */
+function AddedEmailPanel({ portal, data, setPortal, ensureSaved }) {
+    const toast = useToast()
+    const navigate = useNavigate()
+    const [open, setOpen] = useState(false)
+    const draft = portal.config.emails.added
+    const noPassword = data.members.filter(m => m.invited).length
+    const setDraft = patch => setPortal(p => ({ ...p, config: { ...p.config, emails: { ...p.config.emails, added: { ...draft, ...patch } } } }))
+    const send = async () => {
+        try {
+            await ensureSaved()
+            const r = await api.post(`/admin/portals/${portal.id}/notify`, { noPassword: true })
+            toast(queuedText(r.queued)); navigate('/admin/outbox')
+        } catch (e) { toast(e.message, 'error') }
+    }
+    return (
+        <section className="adm-panel adm-form" style={{ marginBottom: 12 }}>
+            <div className="adm-row wrap" style={{ justifyContent: 'space-between' }}>
+                <span><b>{noPassword}</b> participant{noPassword === 1 ? '' : 's'} added by an admin {noPassword === 1 ? 'has' : 'have'} not set a password yet.</span>
+                <div className="adm-row">
+                    <button className="adm-btn small ghost" onClick={() => setOpen(o => !o)}>{open ? 'Hide' : 'Edit'} registration email</button>
+                    <button className="adm-btn small" disabled={!noPassword} onClick={send}><Icon name="send" size={14} /> Email them a set-password link</button>
+                </div>
+            </div>
+            {open && <>
+                <label className="adm-field"><span>Subject</span><input className="adm-input" value={draft.subject} onChange={e => setDraft({ subject: e.target.value })} /></label>
+                <label className="adm-field"><span>Message</span><textarea className="adm-input" rows={9} value={draft.body} onChange={e => setDraft({ body: e.target.value })} /></label>
+                <p className="adm-hint">Placeholders: {'{{name}} {{event}} {{team}} {{code}} {{teamLine}} {{account}} {{link}}'}. {'{{account}}'} becomes the set-password link for people without a password, or a sign-in reminder for everyone else. Save changes before sending.</p>
+            </>}
+        </section>
+    )
+}
+
 /* ---------- Participants ---------- */
-function PeopleTab({ portal, data, reload }) {
+function PeopleTab({ portal, data, reload, setPortal, ensureSaved }) {
     const toast = useToast()
     const confirm = useConfirm()
     const [q, setQ] = useState('')
+    const [adding, setAdding] = useState(null)
+    const openAdd = async kind => { try { await ensureSaved(); setAdding(kind) } catch { /* save failed; toast shown */ } }
     const members = useMemo(() => {
         const by = {}
         for (const m of data.members) (by[m.team_id] ||= []).push(m)
@@ -124,8 +310,15 @@ function PeopleTab({ portal, data, reload }) {
                 <div className="adm-stat"><span className="icon"><Icon name="grid" size={20} /></span><div><strong>{data.teams.length}</strong><span>{portal.config.team.mode === 'team' ? 'teams' : 'entries'}</span>{incomplete > 0 && <small>{incomplete} below minimum size</small>}</div></div>
                 <div className="adm-stat"><span className="icon"><Icon name="check" size={20} /></span><div><strong>{data.teams.filter(t => t.submitted_at).length}</strong><span>submitted</span></div></div>
             </div>
-            <input className="adm-input search" placeholder="Search team, code, name, email or reg no" value={q} onChange={e => setQ(e.target.value)} style={{ marginBottom: 12, width: '100%', maxWidth: 420 }} />
-            {teams.length === 0 ? <Empty icon="users">No registrations yet.</Empty> : (
+            <div className="adm-row wrap" style={{ marginBottom: 12 }}>
+                <input className="adm-input search" placeholder="Search team, code, name, email or reg no" value={q} onChange={e => setQ(e.target.value)} style={{ flex: 1, minWidth: 220, maxWidth: 420 }} />
+                <button className="adm-btn" onClick={() => openAdd('one')}><Icon name="plus" size={16} /> Add participant</button>
+                <button className="adm-btn" onClick={() => openAdd('sheet')}><Icon name="upload" size={16} /> Import Excel</button>
+            </div>
+            <AddedEmailPanel portal={portal} data={data} setPortal={setPortal} ensureSaved={ensureSaved} />
+            {adding === 'one' && <AddParticipant portal={portal} data={data} onClose={() => setAdding(null)} onDone={reload} />}
+            {adding === 'sheet' && <ImportParticipants portal={portal} onClose={() => setAdding(null)} onDone={reload} />}
+            {teams.length === 0 ? <Empty icon="users">No registrations yet — share the event link, or add people above.</Empty> : (
                 <div className="adm-table-wrap">
                     <table className="adm-table">
                         <thead><tr><th>Team</th><th>Members</th><th>Round</th><th>Submitted</th><th /></tr></thead>
@@ -135,7 +328,7 @@ function PeopleTab({ portal, data, reload }) {
                                     <td><strong>{t.name}</strong><small className="adm-block">code {t.code}{t.rank ? ` · rank ${t.rank}` : ''}</small></td>
                                     <td>{(members[t.id] || []).map(m => (
                                         <div key={m.id} className="adm-member">
-                                            <span>{m.name}{m.role === 'lead' && <Badge tone="accent">lead</Badge>}<small className="adm-block">{m.email} · {m.reg_no || '—'} · {m.mobile || '—'}</small></span>
+                                            <span>{m.name}{m.role === 'lead' && <Badge tone="accent">lead</Badge>}{!!m.invited && <Badge tone="warn">No password yet</Badge>}<small className="adm-block">{m.email} · {m.reg_no || '—'} · {m.mobile || '—'}</small></span>
                                             <button className="adm-icon-btn" onClick={() => del(`members/${m.id}`, m.name)} aria-label={`Remove ${m.name}`}><Icon name="close" size={14} /></button>
                                         </div>
                                     ))}</td>
@@ -472,7 +665,7 @@ export default function PortalEditor() {
             </PageTitle>
             <div className="adm-tabs">{TABS.map(([k, l]) => <button key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{l}</button>)}</div>
             {tab === 'setup' && <SetupTab portal={portal} setPortal={setPortal} />}
-            {tab === 'people' && <PeopleTab portal={portal} data={data} reload={load} />}
+            {tab === 'people' && <PeopleTab portal={portal} data={data} reload={load} setPortal={setPortal} ensureSaved={() => (dirty ? savePortal({}, { quiet: true }) : Promise.resolve())} />}
             {tab === 'judging' && <JudgingTab key={`${portal.current_round}-${data.teams.length}`} portal={portal} data={data} reload={load} savePortal={p => savePortal(p).catch(() => {})} />}
             {tab === 'emails' && <EmailsTab portal={portal} data={data} setPortal={setPortal} savePortal={(p, o) => savePortal(p, o)} />}
             {tab === 'certificates' && <CertificatesTab portal={portal} data={data} setPortal={setPortal} savePortal={(p, o) => savePortal(p, o)} reload={load} />}

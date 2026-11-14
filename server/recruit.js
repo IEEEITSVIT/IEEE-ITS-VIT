@@ -3,7 +3,7 @@
  * scoring, interview shortlist, selection (also directly by an admin) and result emails.
  * Only @vitstudent.ac.in accounts with a registration number and mobile number can apply.
  */
-import { getDb, parseJson } from './db.js'
+import { getDb, parseJson, lit, execBatches } from './db.js'
 import { fail, str, isEmail, safeUrl } from './http.js'
 import { createCampaign } from './campaigns.js'
 
@@ -35,19 +35,6 @@ function publicDomain(d) {
         test: d.test_enabled && qs.length ? { minutes: d.test_minutes, deadline: d.test_deadline, questions: qs.length } : null,
         exam: d.exam_link ? { deadline: d.exam_deadline } : null,
     }
-}
-
-/** SQL literal for bulk statements (sheets can hold 1,500 rows; bound parameters are capped at 100 per query on D1). */
-const lit = v => (v == null || v === '' ? 'NULL' : typeof v === 'number' ? String(Number(v) || 0) : `'${String(v).split(String.fromCharCode(0)).join('').replace(/'/g, "''")}'`)
-/** Runs statements in groups that stay well under D1's per-request size limit. */
-async function execBatches(statements) {
-    let batch = []
-    let size = 0
-    for (const st of statements) {
-        if (size + st.length > 80_000 && batch.length) { await getDb().exec(batch.join(';\n')); batch = []; size = 0 }
-        batch.push(st); size += st.length + 2
-    }
-    if (batch.length) await getDb().exec(batch.join(';\n'))
 }
 
 const scoreOf = a => (a.auto_score ?? 0) + (a.manual_score ?? 0)

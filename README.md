@@ -72,6 +72,12 @@ SEO — is edited at **`/admin`**, and the site also runs the chapter's **recrui
 
 ### Event portals (any number of events, at `/e/<event-link>`)
 - Registration by **open link** or an **email allowlist**; optional VIT-students-only.
+- Admins can also **add participants themselves** — one at a time (typed in) or a whole **Excel/CSV sheet**
+  (name, email, reg no, mobile, team, lead). Same team name = one team (or joins an existing team, up to the size
+  limit); duplicates, people already registered, full teams and non-VIT emails in VIT-only events are skipped
+  with a reason. New people get an account without a password and set one on first sign-in; an optional
+  "you are registered" email gives them their team, team code and a set-password link. Invite-only events add
+  them to the allowlist automatically.
 - **Solo or team** events (min/max size). Team leads get a **join code**; **team names are unique within an event**.
 - Up to 6 **submission link fields**, per-round **deadlines**, up to 5 rounds.
 - **Evaluators** (by email) get a judging panel and score against your criteria; scores are averaged.
@@ -185,6 +191,7 @@ Database changes ship as idempotent statements in `server/schema.sql`; after pul
 | Invite people added by Excel / direct add to set their password | **Recruitment → Emails → Set-password invitations** |
 | Send results / reminders | **Recruitment → Emails** (wording in **Recruitment Emails**) |
 | Run a hackathon | **Event Portals → New event portal** → Setup → status *Open* → share `/e/<link>` |
+| Add event participants by hand or from Excel | **Event Portals → (event) → Participants** → *Add participant* / *Import Excel* |
 | Judge | Add evaluator emails in the portal's Setup; they open `/e/<link>/judge` |
 | Announce results | Portal → **Judging & results** (qualify, publish scores, winners) |
 | Certificates | Portal → **Certificates**, or **Certificates** for an Excel list |

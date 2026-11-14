@@ -103,3 +103,16 @@ export const parseJson = (v, fallback) => {
     if (typeof v !== 'string') return v
     try { return JSON.parse(v) } catch { return fallback }
 }
+
+/** SQL literal for bulk statements (sheets can hold 1,500 rows; bound parameters are capped at 100 per query on D1). */
+export const lit = v => (v == null || v === '' ? 'NULL' : typeof v === 'number' ? String(Number(v) || 0) : `'${String(v).split(String.fromCharCode(0)).join('').replace(/'/g, "''")}'`)
+/** Runs statements in groups that stay well under D1's per-request size limit. */
+export async function execBatches(statements) {
+    let batch = []
+    let size = 0
+    for (const st of statements) {
+        if (size + st.length > 80_000 && batch.length) { await getDb().exec(batch.join(';\n')); batch = []; size = 0 }
+        batch.push(st); size += st.length + 2
+    }
+    if (batch.length) await getDb().exec(batch.join(';\n'))
+}
