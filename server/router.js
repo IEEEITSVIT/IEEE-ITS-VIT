@@ -208,26 +208,73 @@ const siteBase = (site, req) => {
     return (host ? `${proto}://${host}` : site.url || '').replace(/\/$/, '')
 }
 
+/*
+ * /sitemap.xml — built from the database, so new events, blogs and event portals appear automatically.
+ * Includes last-modified dates, change frequency and event posters as image entries.
+ */
 route('GET', '/api/sitemap.xml', async ({ req, res }) => {
-    const [{ site }, events, blogs] = await Promise.all([
-        loadSettings(['site']), loadEvents(), getDb().all("SELECT data, updated_at FROM content WHERE type = 'blogs' AND status = 'published'"),
+    const db = getDb()
+    const [{ site, recruitment }, events, blogs, portals, touched] = await Promise.all([
+        loadSettings(['site', 'recruitment']), loadEvents(),
+        db.all("SELECT data, updated_at FROM content WHERE type = 'blogs' AND status = 'published'"),
+        db.all("SELECT slug, title, config, updated_at FROM ev_portals WHERE status != 'draft'"),
+        db.first("SELECT MAX(t) t FROM (SELECT MAX(updated_at) t FROM content UNION ALL SELECT MAX(updated_at) FROM settings UNION ALL SELECT MAX(updated_at) FROM events)"),
     ])
     const base = siteBase(site, req)
-    const pages = ['/', '/timeline', '/moments', '/blogs', '/vlogs', '/faculty', '/merch', '/games', '/faq', '/join', '/contact', '/suggestions', '/web-team']
-    const urls = [
-        ...pages.map(p => ({ loc: base + p, priority: p === '/' ? '1.0' : '0.7' })),
-        ...events.map(e => ({ loc: `${base}/events/${e.slug}`, lastmod: e.updated_at?.slice(0, 10), priority: e.state === 'upcoming' ? '0.9' : '0.5' })),
-        ...blogs.map(b => { const d = parseJson(b.data, {}); return { loc: `${base}/blogs/${d.slug || slugify(d.title)}`, lastmod: b.updated_at?.slice(0, 10), priority: '0.6' } }),
+    const day = v => (v ? String(v).slice(0, 10) : undefined)
+    const siteDay = day(touched?.t) || new Date().toISOString().slice(0, 10)
+    const abs = u => (!u ? '' : /^https?:/i.test(u) ? u : `${base}${u.startsWith('/') ? '' : '/'}${u}`)
+    const pages = [
+        ['/', '1.0', 'weekly'], ['/timeline', '0.9', 'weekly'], ['/moments', '0.7', 'monthly'], ['/blogs', '0.7', 'weekly'],
+        ['/vlogs', '0.6', 'monthly'], ['/faculty', '0.6', 'yearly'], ['/web-team', '0.5', 'yearly'], ['/merch', '0.6', 'monthly'],
+        ['/games', '0.4', 'yearly'], ['/faq', '0.6', 'monthly'], ['/join', '0.7', 'monthly'], ['/contact', '0.6', 'yearly'],
+        ['/suggestions', '0.4', 'yearly'], ...(recruitment?.open ? [['/recruitment', '0.9', 'daily']] : []),
     ]
-    const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map(u =>
-        `  <url><loc>${u.loc.replace(/&/g, '&amp;')}</loc>${u.lastmod ? `<lastmod>${u.lastmod}</lastmod>` : ''}<priority>${u.priority}</priority></url>`).join('\n')}\n</urlset>\n`
-    send(res, 200, xml, { 'Content-Type': 'application/xml; charset=utf-8', 'Cache-Control': 'public, s-maxage=3600' })
+    const urls = [
+        ...pages.map(([p, priority, changefreq]) => ({ loc: base + p, lastmod: siteDay, changefreq, priority })),
+        ...events.map(e => ({
+            loc: `${base}/events/${e.slug}`, lastmod: day(e.updated_at), changefreq: e.state === 'past' ? 'yearly' : 'weekly',
+            priority: e.state === 'upcoming' ? '0.9' : e.state === 'ongoing' ? '0.8' : '0.5', image: abs(e.poster_url), title: e.title,
+        })),
+        ...portals.map(p => {
+            const c = parseJson(p.config, {})
+            return { loc: `${base}/e/${p.slug}`, lastmod: day(p.updated_at), changefreq: 'daily', priority: '0.8', image: abs(c.banner), title: p.title }
+        }),
+        ...blogs.map(b => {
+            const d = parseJson(b.data, {})
+            return { loc: `${base}/blogs/${d.slug || slugify(d.title)}`, lastmod: day(b.updated_at), changefreq: 'monthly', priority: '0.6', image: abs(d.image), title: d.title }
+        }),
+    ]
+    const x = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' }[c]))
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
+${urls.map(u => `  <url>
+    <loc>${x(u.loc)}</loc>${u.lastmod ? `\n    <lastmod>${u.lastmod}</lastmod>` : ''}
+    <changefreq>${u.changefreq}</changefreq>
+    <priority>${u.priority}</priority>${u.image ? `\n    <image:image><image:loc>${x(u.image)}</image:loc>${u.title ? `<image:title>${x(u.title)}</image:title>` : ''}</image:image>` : ''}
+  </url>`).join('\n')}
+</urlset>
+`
+    send(res, 200, xml, { 'Content-Type': 'application/xml; charset=utf-8', 'Cache-Control': 'public, max-age=0, s-maxage=3600, stale-while-revalidate=86400' })
 })
 
+/* /robots.txt — crawl the public site; keep private and personal pages out of search results. */
 route('GET', '/api/robots.txt', async ({ req, res }) => {
     const { site } = await loadSettings(['site'])
     const base = siteBase(site, req)
-    send(res, 200, `User-agent: *\nAllow: /\nDisallow: /admin\nDisallow: /api/\n\nSitemap: ${base}/sitemap.xml\n`, { 'Cache-Control': 'public, s-maxage=3600' })
+    const txt = `# IEEE ITS - VIT Chapter — ${base}
+User-agent: *
+Allow: /
+Allow: /sitemap.xml
+Disallow: /admin
+Disallow: /api/
+Disallow: /login
+Disallow: /recruitment/test/
+Disallow: /e/*/judge
+
+Sitemap: ${base}/sitemap.xml
+`
+    send(res, 200, txt, { 'Cache-Control': 'public, max-age=0, s-maxage=3600, stale-while-revalidate=86400' })
 })
 
 route('POST', '/api/queries', async ({ req, body, user }) => {
